@@ -22,3 +22,9 @@ def read_config(filepath: str) -> Dict[str, Any]:
               f"Varsayılan ayarlar kullanılacak")
 
     return config_data
+
+
+def validate_config(raw_config: Dict[str, Any]) -> Dict[str, Any]:
+    valid_config: Dict[str, Any] = {}
+    required_keys = ['WIDTH', 'HEIGHT', 'ENTRY']
+
