@@ -1,7 +1,7 @@
 import random
 from typing import List, Tuple
 
-from maze import Cell
+from .maze import Cell
 
 
 class MazeGenerator:
@@ -60,3 +60,51 @@ class MazeGenerator:
                 stack.append(next_cell)
             else:
                 stack.pop()
+
+    def generate_pacman_maze(self) -> None:
+        self.generate_perfect_maze()
+        self._remove_dead_ends()
+
+    def _remove_dead_ends(self):
+
+        opposite_walls = {
+                    "N": "S",
+                    "S": "N",
+                    "E": "W",
+                    "W": "E",
+                }
+        for y in range(self.height):
+            for x in range(self.width):
+                cell = self.grid[x][y]
+
+                closed_walls = [
+                    direction
+                    for direction, is_closed in cell.walls.items()
+                    if is_closed
+                ]
+            if len(closed_walls) == 3:
+                breakable_walls = []
+                if "N" in closed_walls and y > 0:
+                    breakable_walls.append("N")
+                if "S" in closed_walls and y < self.height - 1:
+                    breakable_walls.append("S")
+                if "E" in closed_walls and x < self.width - 1:
+                    breakable_walls.append("E")
+                if "W" in closed_walls and x > 0:
+                    breakable_walls.append("W")
+                if breakable_walls:
+                    wall_to_break = random.choice(breakable_walls)
+                    cell.walls[wall_to_break] = False
+
+                    if wall_to_break == "N":
+                        neighbor = self.grid[y-1][x]
+                    elif wall_to_break == "S":
+                        neighbor = self.grid[y+1][x]
+                    elif wall_to_break == "E":
+                        neighbor = self.grid[y][x+1]
+                    elif wall_to_break == "W":
+                        neighbor = self.grid[y][x-1]
+
+                    neighbor.walls[opposite_walls[wall_to_break]] = False
+        
+        
