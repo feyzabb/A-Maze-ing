@@ -43,6 +43,6 @@ def save_maze_to_file(maze_grid: List[List[Cell]], filepath: str,
             f.write(f"{exit[0]},{exit[1]}\n")
             f.write("".join(path)+"\n")
 
-        print(f"Başarılı:Labirent {filepath} dosyasına kaydedildi!")
+        print(f"Success: The maze has been saved to the {filepath} file!")
     except Exception as e:
-        print(f"Hata: Dosya kaydedilemedi! {e}")
+        print(f"Error: The file could not be saved! {e}")

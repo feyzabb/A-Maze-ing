@@ -1,13 +1,22 @@
-.PHONY: install lint clean
+.PHONY: install run debug clean lint lint-strict
 
 install:
-	pip install -e .
-	pip install flake8 mypy
+	pip install -r requirements.txt
 
-lint:
-	flake8 mazegen
-	mypy mazegen --strict
+run:
+	python3 a_maze_ing.py config.txt
+
+debug:
+	python3 -m pdb a_maze_ing.py config.txt
 
 clean:
-	rm -rf __pycache__ mazegen/__pycache__ .mypy_cache
-	rm -rf *.egg-info
+	rm -rf __pycache__ .mypy_cache
+	find . -type d -name "__pycache__" -exec rm -r {} +
+
+lint:
+	flake8 .
+	mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
+
+lint-strict:
+	flake8 .
+	mypy . --strict
