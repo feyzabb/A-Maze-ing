@@ -57,38 +57,70 @@ self.entry
 self.exit
 self.path dolduruldu"""
 
-from typing import Dict, Any
+from typing import List
 
 
 class MazeDisplay():
-    def __init__(self, filepath):
+    def __init__(self, filepath: str):
         self.filepath = filepath
-        self.grid = []
-        self.entry = Any
-        self.exit = Any
-        self.path = []
+        self.grid: List[List[int]] = []
+        self.path: List[str] = []
+        self.entry = None
+        self.exit = None
+        self.load_maze()
     
 
-    def load_maze(self) -> Dict[str, Any]:
-        grid_lines: []
-        footer_lines: []
+    def load_maze(self) -> None:
+        grid_lines: List[str] = []
+        footer_lines: List[str] = []
+        reading_grid = True
 
         try:
             with open(self.filepath, 'r') as file:
-                reading_grid = True
                 for line in file:
                     line = line.strip()
+
                     if not line:
                         reading_grid = False
                         continue
                     if reading_grid:
                         grid_lines.append(line)
-                    elif:
-                        footer_lines.append(line)
                     else:
-                        print(f"Incorrect line! -> {line}")
+                        footer_lines.append(line)
+            self.parse_grid(grid_lines)
+            self.parse_coordinates(footer_lines)
+            self.parse_paths(footer_lines)
         except FileNotFoundError:
             print(f"Error:'{self.filepath}' is not found!"
                 f"Default settings will be used.")
 
-        return 
+
+    def parse_grid(self, grid_lines: List[str]) -> None:
+        self.grid: List[List[int]] = []
+
+        for line in grid_lines:
+            row: List[int] = []
+            for char in line:
+                row.append(int(char, 16))
+            self.grid.append(row)
+
+
+    def parse_coordinates(self, footer_lines: List[str]) -> None:
+        entry_parts = footer_lines[0].split(',')
+        entry_parts = (int(entry_parts[0]), int(entry_parts[1]))
+        self.entry = entry_parts
+
+        exit_parts = footer_lines[1].split(',')
+        exit_parts = (int(exit_parts[0]), int(exit_parts[1]))
+        self.exit = exit_parts
+
+
+    def parse_paths(self, footer_lines: List[str]) -> None:
+        self.path = []
+        path = footer_lines[2]
+
+        for direction in path:
+            if direction not in "EWSN":
+                raise ValueError(f"Invalid direction: '{direction}'")
+            self.path.append(direction)
+   
