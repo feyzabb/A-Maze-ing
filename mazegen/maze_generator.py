@@ -1,6 +1,6 @@
 import random
-from typing import List, Tuple
-
+from typing import List, Tuple, Dict
+from collections import deque
 from .maze import Cell
 
 
@@ -172,3 +172,53 @@ class MazeGenerator:
 
         for x, y in self._pattern_cells:
             self._close_cell_completely(x, y)
+
+    def solve_maze(self, start: Tuple[int, int],
+                   end: Tuple[int, int]) -> List[str]:
+        start_x, start_y = start
+        exit_x, exit_y = end
+
+        start_cell = self.grid[start_y][start_x]
+
+        queue = deque([start_cell])
+        visited = set()
+        visited.add((start_x, start_y))
+
+        parent_map: Dict[Tuple[int, int], Tuple[Tuple[int, int], str]] = {}
+
+        while queue:
+            current_cell = queue.popleft()
+
+            if current_cell.x == exit_x and current_cell.y == exit_y:
+                break
+
+            directions = [
+                (0, -1, 'N', 'N'),
+                (0, 1, 'S', 'S'),
+                (1, 0, 'E', 'E'),
+                (-1, 0, 'W', 'W')
+            ]
+
+            for dx, dy, wall_dir, out_dir in directions:
+                if not current_cell.walls[wall_dir]:
+                    nx, ny = current_cell.x + dx, current_cell.y + dy
+
+                    if 0 <= nx < self.width and 0 <= ny < self.height:
+                        if (nx, ny) not in visited:
+                            visited.add((nx, ny))           
+                            queue.append(self.grid[ny][nx]) 
+                            parent_map[(nx, ny)] = ((current_cell.x,
+                                                     current_cell.y), out_dir)
+        path = []
+        curr = (exit_x, exit_y)
+
+        while curr != (start_x, start_y):
+            if curr not in parent_map:
+                return []
+
+            prev_coords, direction = parent_map[curr]
+            path.append(direction)
+            curr = prev_coords
+        path.reverse()
+
+        return path
