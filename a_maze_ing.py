@@ -12,7 +12,7 @@ def read_config(filepath: str) -> Dict[str, Any]:
             for line in file:
                 line = line.strip()
 
-                if not line:
+                if not line or line.startswith('#'):
                     continue
 
                 if '=' in line:
@@ -60,6 +60,22 @@ def validate_config(raw_config: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError(f"Error: An unexpected configuration error occurred! "
                          f"{e}")
 
+    if valid_config['WIDTH'] <= 0 or valid_config['HEIGHT'] <= 0:
+        raise ValueError("Error: WIDTH and HEIGHT must be greater than zero!")
+
+    entry_x, entry_y = valid_config['ENTRY']
+    if (
+        not (0 <= entry_x < valid_config['WIDTH'])
+        or not (0 <= entry_y < valid_config['HEIGHT'])
+    ):
+        raise ValueError("Error: ENTRY coordinates are out of maze bounds!")
+
+    exit_x, exit_y = valid_config['EXIT']
+    if (
+        not (0 <= exit_x < valid_config['WIDTH'])
+        or not (0 <= exit_y < valid_config['HEIGHT'])
+    ):
+        raise ValueError("Error: EXIT coordinates are out of maze bounds!")
     return valid_config
 
 
