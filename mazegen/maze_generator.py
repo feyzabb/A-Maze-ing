@@ -12,6 +12,43 @@ class MazeGenerator:
             [Cell(x, y) for x in range(width)]
             for y in range(height)
         ]
+        self._pattern_cells: List[Tuple[int, int]] = (
+            self._compute_42_pattern_cells()
+        )
+
+    def _compute_42_pattern_cells(self) -> List[Tuple[int, int]]:
+        pattern_width = 8
+        pattern_height = 5
+
+        if self.width < pattern_width or self.height < pattern_height:
+            return []
+
+        start_x = (self.width - pattern_width) // 2
+        start_y = (self.height - pattern_height) // 2
+
+        pattern_offsets = [
+            (0, 0),         (2, 0),
+            (0, 1),         (2, 1),
+            (0, 2), (1, 2), (2, 2),
+                            (2, 3),
+                            (2, 4),
+
+            (5, 0), (6, 0), (7, 0),
+                            (7, 1),
+            (5, 2), (6, 2), (7, 2),
+            (5, 3),
+            (5, 4), (6, 4), (7, 4)
+        ]
+
+        return [(start_x + dx, start_y + dy) for dx, dy in pattern_offsets]
+
+    def mark_42_pattern_as_visited(self) -> None:
+        if not self._pattern_cells:
+            print("Error: Maze size is not big enough for the 42 pattern!")
+            return
+
+        for x, y in self._pattern_cells:
+            self.grid[y][x].visited = True
 
     def _get_neighbors(
         self,
@@ -73,8 +110,12 @@ class MazeGenerator:
                     "E": "W",
                     "W": "E",
                 }
+        pattern_cells = set(self._pattern_cells)
         for y in range(self.height):
             for x in range(self.width):
+                if (x, y) in pattern_cells:
+                    continue
+
                 cell = self.grid[y][x]
 
                 closed_walls = [
@@ -125,27 +166,9 @@ class MazeGenerator:
             self.grid[y][x+1].walls["W"] = True
 
     def add_42(self) -> None:
-        if self.width < 7 or self.height < 5:
-            print("Hata: Labirent boyutu 42 deseni için yeterli değil!")
+        if not self._pattern_cells:
+            print("Error: Maze size is not big enough for the 42 pattern!")
             return
 
-        start_x = (self.width - 7) // 2
-        start_y = (self.height - 5) // 2
-
-        pattern_offsets = [
-
-            (0, 0),         (2, 0),
-            (0, 1),         (2, 1),
-            (0, 2), (1, 2), (2, 2),
-                            (2, 3),
-                            (2, 4),
-
-            (5, 0), (6, 0), (7, 0),
-                            (7, 1),
-            (5, 2), (6, 2), (7, 2),
-            (5, 3),
-            (5, 4), (6, 4), (7, 4)
-        ]
-
-        for dx, dy in pattern_offsets:
-            self._close_cell_completely(start_x + dx, start_y + dy)
+        for x, y in self._pattern_cells:
+            self._close_cell_completely(x, y)
