@@ -123,4 +123,3 @@ class MazeDisplay():
             if direction not in "EWSN":
                 raise ValueError(f"Invalid direction: '{direction}'")
             self.path.append(direction)
-   

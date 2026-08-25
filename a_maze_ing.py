@@ -1,4 +1,5 @@
 import sys
+import random
 from typing import Dict, Any
 from mazegen.maze_generator import MazeGenerator
 from mazegen.maze import save_maze_to_file
@@ -30,7 +31,7 @@ def read_config(filepath: str) -> Dict[str, Any]:
 def validate_config(raw_config: Dict[str, Any]) -> Dict[str, Any]:
     valid_config: Dict[str, Any] = {}
     required_keys = ['WIDTH', 'HEIGHT', 'ENTRY', 'EXIT', 'OUTPUT_FILE',
-                     'PERFECT']
+                     'PERFECT', 'SEED']
     for key in required_keys:
         if key not in raw_config:
             raise ValueError(f"Error: '{key}' could not be found in the file!")
@@ -50,7 +51,10 @@ def validate_config(raw_config: Dict[str, Any]) -> Dict[str, Any]:
 
         valid_config['PERFECT'] = raw_config['PERFECT'].lower() == 'true'
         valid_config['OUTPUT_FILE'] = raw_config['OUTPUT_FILE']
-
+        if 'SEED' in raw_config:
+            valid_config['SEED'] = int(raw_config['SEED'])
+        else:
+            valid_config['SEED'] = None
     except ValueError as e:
         raise ValueError(f"Error: Invalid type found in settings file! {e}")
     except IndexError:
@@ -94,6 +98,9 @@ def main() -> None:
 
         config = validate_config(raw_config)
 
+        if config['SEED'] is not None:
+            random.seed(config['SEED'])
+
         generator = MazeGenerator(
             width=config['WIDTH'],
             height=config['HEIGHT']
@@ -107,15 +114,15 @@ def main() -> None:
             generator.generate_pacman_maze()
 
         generator.add_42()
-
-        dummy_path = ["E", "E", "S", "W"]
+        shortest_path = generator.solve_maze(config['ENTRY'],
+                                             config['EXIT'])
 
         save_maze_to_file(
             maze_grid=generator.grid,
             filepath=config['OUTPUT_FILE'],
             entry=config['ENTRY'],
             exit=config['EXIT'],
-            path=dummy_path
+            path=shortest_path
         )
 
     except ValueError as e:
