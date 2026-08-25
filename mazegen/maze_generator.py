@@ -42,6 +42,9 @@ class MazeGenerator:
 
         return [(start_x + dx, start_y + dy) for dx, dy in pattern_offsets]
 
+    def is_pattern_cell(self, x: int, y: int) -> bool:
+        return (x, y) in self._pattern_cells
+
     def mark_42_pattern_as_visited(self) -> None:
         if not self._pattern_cells:
             print("Error: Maze size is not big enough for the 42 pattern!")
@@ -289,7 +292,7 @@ class MazeGenerator:
             self.grid[ny][nx].walls[opposite] = False
 
             loops_added += 1
-    
+
     def _close_cell_completely(self, x: int, y: int) -> None:
         cell = self.grid[y][x]
         cell.walls["N"] = True
