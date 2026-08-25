@@ -102,7 +102,60 @@ class MazeGenerator:
         self.generate_perfect_maze()
         self._remove_dead_ends()
 
-    def _remove_dead_ends(self):
+    def _is_safe_to_break(self, x: int, y: int, direction: str) -> bool:
+        dx, dy = 0, 0
+        if direction == "N":
+            dy = -1
+        elif direction == "S":
+            dy = 1
+        elif direction == "E":
+            dx = 1
+        elif direction == "W":
+            dx = -1
+
+        nx, ny = x + dx, y + dy
+
+        if not (0 <= nx < self.width and 0 <= ny < self.height):
+            return False
+
+        self.grid[y][x].walls[direction] = False
+        opposite = {"N": "S", "S": "N", "E": "W", "W": "E"}[direction]
+        self.grid[ny][nx].walls[opposite] = False
+
+        is_safe = True
+
+        for cy in range(max(0, min(y, ny) - 2), min(max(y, ny) + 1,
+                                                    self.height - 2)):
+            for cx in range(max(0, min(x, nx) - 2), min(max(x, nx) + 1,
+                                                        self.width - 2)):  
+                area_is_fully_open = True
+
+                for i in range(3):
+                    for j in range(3):
+                        cell_y = cy + i
+                        cell_x = cx + j
+
+                        if j < 2 and self.grid[cell_y][cell_x].walls["E"]:
+                            area_is_fully_open = False
+                            break
+                        if i < 2 and self.grid[cell_y][cell_x].walls["S"]:
+                            area_is_fully_open = False
+                            break
+                    if not area_is_fully_open:
+                        break
+                if area_is_fully_open:
+                    is_safe = False
+                    break
+
+            if not is_safe:
+                break
+
+        self.grid[y][x].walls[direction] = True
+        self.grid[ny][nx].walls[opposite] = True
+
+        return is_safe
+
+    def _remove_dead_ends(self) -> None:
 
         opposite_walls = {
                     "N": "S",
@@ -136,18 +189,33 @@ class MazeGenerator:
                         breakable_walls.append("W")
                     if breakable_walls:
                         wall_to_break = random.choice(breakable_walls)
+
+                    safe_walls = [
+                        wall
+                        for wall in breakable_walls
+                        if self._is_safe_to_break(x, y, wall)
+                    ]
+
+                    if safe_walls:
+                        wall_to_break = random.choice(safe_walls)
+
                         cell.walls[wall_to_break] = False
 
                         if wall_to_break == "N":
-                            neighbor = self.grid[y-1][x]
-                        elif wall_to_break == "S":
-                            neighbor = self.grid[y+1][x]
-                        elif wall_to_break == "E":
-                            neighbor = self.grid[y][x+1]
-                        elif wall_to_break == "W":
-                            neighbor = self.grid[y][x-1]
+                            neighbor = self.grid[y - 1][x]
 
-                        neighbor.walls[opposite_walls[wall_to_break]] = False
+                        elif wall_to_break == "S":
+                            neighbor = self.grid[y + 1][x]
+
+                        elif wall_to_break == "E":
+                            neighbor = self.grid[y][x + 1]
+
+                        else:
+                            neighbor = self.grid[y][x - 1]
+
+                        neighbor.walls[
+                            opposite_walls[wall_to_break]
+                        ] = False
 
     def _close_cell_completely(self, x: int, y: int) -> None:
         cell = self.grid[y][x]
