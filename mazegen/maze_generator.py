@@ -127,7 +127,7 @@ class MazeGenerator:
         for cy in range(max(0, min(y, ny) - 2), min(max(y, ny) + 1,
                                                     self.height - 2)):
             for cx in range(max(0, min(x, nx) - 2), min(max(x, nx) + 1,
-                                                        self.width - 2)):  
+                                                        self.width - 2)):
                 area_is_fully_open = True
 
                 for i in range(3):
@@ -273,8 +273,8 @@ class MazeGenerator:
 
                     if 0 <= nx < self.width and 0 <= ny < self.height:
                         if (nx, ny) not in visited:
-                            visited.add((nx, ny))           
-                            queue.append(self.grid[ny][nx]) 
+                            visited.add((nx, ny))
+                            queue.append(self.grid[ny][nx])
                             parent_map[(nx, ny)] = ((current_cell.x,
                                                      current_cell.y), out_dir)
         path = []

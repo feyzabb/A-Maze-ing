@@ -65,10 +65,9 @@ class MazeDisplay():
         self.filepath = filepath
         self.grid: List[List[int]] = []
         self.path: List[str] = []
-        self.entry = None
-        self.exit = None
+        self.entry: tuple[int, int] | None = None
+        self.exit: tuple[int, int] | None = None
         self.load_maze()
-    
 
     def load_maze(self) -> None:
         grid_lines: List[str] = []
@@ -92,11 +91,10 @@ class MazeDisplay():
             self.parse_paths(footer_lines)
         except FileNotFoundError:
             print(f"Error:'{self.filepath}' is not found!"
-                f"Default settings will be used.")
-
+                  f"Default settings will be used.")
 
     def parse_grid(self, grid_lines: List[str]) -> None:
-        self.grid: List[List[int]] = []
+        self.grid = []
 
         for line in grid_lines:
             row: List[int] = []
@@ -104,16 +102,18 @@ class MazeDisplay():
                 row.append(int(char, 16))
             self.grid.append(row)
 
-
     def parse_coordinates(self, footer_lines: List[str]) -> None:
         entry_parts = footer_lines[0].split(',')
-        entry_parts = (int(entry_parts[0]), int(entry_parts[1]))
-        self.entry = entry_parts
+        self.entry = (
+            int(entry_parts[0]),
+            int(entry_parts[1])
+        )
 
         exit_parts = footer_lines[1].split(',')
-        exit_parts = (int(exit_parts[0]), int(exit_parts[1]))
-        self.exit = exit_parts
-
+        self.exit = (
+            int(exit_parts[0]),
+            int(exit_parts[1])
+        )
 
     def parse_paths(self, footer_lines: List[str]) -> None:
         self.path = []

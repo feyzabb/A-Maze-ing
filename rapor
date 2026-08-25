@@ -1072,3 +1072,29 @@ Labirent üretiminde Randomized DFS ve backtracking yaklaşımı kullanılarak h
 Çözüm tarafında ise BFS kullanılarak giriş ve çıkış arasındaki en kısa yol hesaplanmakta ve sonuç N, E, S ve W yönlerinden oluşan bir path olarak elde edilmektedir.
 
 Son olarak hücrelerin duvarları bit tabanlı hexadecimal gösterime dönüştürülerek labirentin kompakt bir dosya formatında saklanabilmesi sağlanmıştır.
+
+
+
+## `_is_safe_to_break()` – 3×3 Açık Alan Kontrolü
+
+Bu fonksiyon, Pac-Man modunda bir duvar kaldırılmadan önce işlemin güvenli olup olmadığını kontrol etmek için kullanılır.
+
+Fonksiyon, kaldırılması düşünülen duvarı geçici olarak açar ve çevrede oluşabilecek 3×3 alanları inceler. Eğer duvarın açılması tamamen açık bir 3×3 alan oluşturuyorsa `False`, güvenliyse `True` döndürür. Kontrol tamamlandıktan sonra geçici olarak açılan duvar tekrar eski haline getirilir.
+
+`_remove_dead_ends()` fonksiyonunda kırılabilecek duvarlar önce bu fonksiyonla kontrol edilir ve yalnızca güvenli olan duvarlardan biri rastgele seçilerek açılır.
+
+```text
+Dead-end bul
+    ↓
+Kırılabilecek duvarları belirle
+    ↓
+_is_safe_to_break()
+    ↓
+3×3 açık alan oluşuyor mu?
+   ↙             ↘
+ Evet           Hayır
+  ↓               ↓
+Açma          Duvarı aç
+```
+
+Bu sayede Pac-Man tipi labirent oluşturulurken çıkmaz yollar azaltılırken 3×3 tamamen açık alanların oluşması engellenir.
