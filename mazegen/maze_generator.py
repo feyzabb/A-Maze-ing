@@ -101,6 +101,7 @@ class MazeGenerator:
     def generate_pacman_maze(self) -> None:
         self.generate_perfect_maze()
         self._remove_dead_ends()
+        self._add_loops(2)
 
     def _is_safe_to_break(self, x: int, y: int, direction: str) -> bool:
         dx, dy = 0, 0
@@ -116,6 +117,11 @@ class MazeGenerator:
         nx, ny = x + dx, y + dy
 
         if not (0 <= nx < self.width and 0 <= ny < self.height):
+            return False
+
+        pattern_cells = set(self._pattern_cells)
+
+        if (nx, ny) in pattern_cells:
             return False
 
         self.grid[y][x].walls[direction] = False
@@ -156,7 +162,6 @@ class MazeGenerator:
         return is_safe
 
     def _remove_dead_ends(self) -> None:
-
         opposite_walls = {
                     "N": "S",
                     "S": "N",
@@ -164,21 +169,28 @@ class MazeGenerator:
                     "W": "E",
                 }
         pattern_cells = set(self._pattern_cells)
-        for y in range(self.height):
-            for x in range(self.width):
-                if (x, y) in pattern_cells:
-                    continue
 
-                cell = self.grid[y][x]
+        while True:
+            changed = False
 
-                closed_walls = [
-                    direction
-                    for direction, is_closed in cell.walls.items()
-                    if is_closed
-                ]
+            for y in range(self.height):
+                for x in range(self.width):
+                    if (x, y) in pattern_cells:
+                        continue
 
-                if len(closed_walls) == 3:
+                    cell = self.grid[y][x]
+
+                    closed_walls = [
+                        direction
+                        for direction, is_closed in cell.walls.items()
+                        if is_closed
+                    ]
+
+                    if len(closed_walls) != 3:
+                        continue
+
                     breakable_walls = []
+
                     if "N" in closed_walls and y > 0:
                         breakable_walls.append("N")
                     if "S" in closed_walls and y < self.height - 1:
@@ -187,8 +199,6 @@ class MazeGenerator:
                         breakable_walls.append("E")
                     if "W" in closed_walls and x > 0:
                         breakable_walls.append("W")
-                    if breakable_walls:
-                        wall_to_break = random.choice(breakable_walls)
 
                     safe_walls = [
                         wall
@@ -196,27 +206,90 @@ class MazeGenerator:
                         if self._is_safe_to_break(x, y, wall)
                     ]
 
-                    if safe_walls:
-                        wall_to_break = random.choice(safe_walls)
+                    if not safe_walls:
+                        continue
 
-                        cell.walls[wall_to_break] = False
+                    wall_to_break = random.choice(safe_walls)
 
-                        if wall_to_break == "N":
-                            neighbor = self.grid[y - 1][x]
+                    cell.walls[wall_to_break] = False
 
-                        elif wall_to_break == "S":
-                            neighbor = self.grid[y + 1][x]
+                    if wall_to_break == "N":
+                        neighbor = self.grid[y - 1][x]
 
-                        elif wall_to_break == "E":
-                            neighbor = self.grid[y][x + 1]
+                    elif wall_to_break == "S":
+                        neighbor = self.grid[y + 1][x]
 
-                        else:
-                            neighbor = self.grid[y][x - 1]
+                    elif wall_to_break == "E":
+                        neighbor = self.grid[y][x + 1]
 
-                        neighbor.walls[
-                            opposite_walls[wall_to_break]
+                    else:
+                        neighbor = self.grid[y][x - 1]
+
+                    neighbor.walls[
+                        opposite_walls[wall_to_break]
                         ] = False
 
+                    changed = True
+
+            if not changed:
+                break
+
+    def _add_loops(self, minimum_loops: int = 2) -> None:
+        pattern_cells = set(self._pattern_cells)
+
+        directions = [
+            ("N", 0, -1, "S"),
+            ("S", 0, 1, "N"),
+            ("E", 1, 0, "W"),
+            ("W", -1, 0, "E"),
+        ]
+
+        candidates = []
+
+        for y in range(self.height):
+            for x in range(self.width):
+                if (x, y) in pattern_cells:
+                    continue
+
+                cell = self.grid[y][x]
+
+                for direction, dx, dy, opposite in directions:
+                    nx = x + dx
+                    ny = y + dy
+
+                    if not (0 <= nx < self.width and 0 <= ny < self.height):
+                        continue
+
+                    if (nx, ny) in pattern_cells:
+                        continue
+
+                    if not cell.walls[direction]:
+                        continue
+
+                    if self._is_safe_to_break(x, y, direction):
+                        candidates.append(
+                            (x, y, direction, nx, ny, opposite)
+                        )
+
+        random.shuffle(candidates)
+
+        loops_added = 0
+
+        for x, y, direction, nx, ny, opposite in candidates:
+            if loops_added >= minimum_loops:
+                break
+
+            if not self.grid[y][x].walls[direction]:
+                continue
+
+            if not self._is_safe_to_break(x, y, direction):
+                continue
+
+            self.grid[y][x].walls[direction] = False
+            self.grid[ny][nx].walls[opposite] = False
+
+            loops_added += 1
+    
     def _close_cell_completely(self, x: int, y: int) -> None:
         cell = self.grid[y][x]
         cell.walls["N"] = True

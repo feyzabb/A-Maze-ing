@@ -31,7 +31,7 @@ def read_config(filepath: str) -> Dict[str, Any]:
 def validate_config(raw_config: Dict[str, Any]) -> Dict[str, Any]:
     valid_config: Dict[str, Any] = {}
     required_keys = ['WIDTH', 'HEIGHT', 'ENTRY', 'EXIT', 'OUTPUT_FILE',
-                     'PERFECT', 'SEED']
+                     'PERFECT']
     for key in required_keys:
         if key not in raw_config:
             raise ValueError(f"Error: '{key}' could not be found in the file!")
@@ -80,6 +80,10 @@ def validate_config(raw_config: Dict[str, Any]) -> Dict[str, Any]:
         or not (0 <= exit_y < valid_config['HEIGHT'])
     ):
         raise ValueError("Error: EXIT coordinates are out of maze bounds!")
+
+    if valid_config['ENTRY'] == valid_config['EXIT']:
+        raise ValueError("Error: ENTRY and EXIT must be different!")
+
     return valid_config
 
 
