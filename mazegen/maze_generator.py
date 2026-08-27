@@ -47,7 +47,6 @@ class MazeGenerator:
 
     def mark_42_pattern_as_visited(self) -> None:
         if not self._pattern_cells:
-            print("Error: Maze size is not big enough for the 42 pattern!")
             return
 
         for x, y in self._pattern_cells:
@@ -102,7 +101,6 @@ class MazeGenerator:
                 stack.pop()
 
     def generate_pacman_maze(self) -> None:
-        self.generate_perfect_maze()
         self._remove_dead_ends()
         self._add_loops(2)
 
@@ -311,7 +309,6 @@ class MazeGenerator:
 
     def add_42(self) -> None:
         if not self._pattern_cells:
-            print("Error: Maze size is not big enough for the 42 pattern!")
             return
 
         for x, y in self._pattern_cells:

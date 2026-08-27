@@ -125,9 +125,8 @@ def main() -> None:
 
         generator.mark_42_pattern_as_visited()
 
-        if config['PERFECT']:
-            generator.generate_perfect_maze()
-        else:
+        generator.generate_perfect_maze()
+        if not config['PERFECT']:
             generator.generate_pacman_maze()
 
         generator.add_42()
