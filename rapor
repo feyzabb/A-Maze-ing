@@ -1,1100 +1,986 @@
 # A-Maze-Ing Projesi – Algoritma Bölümü Raporu
 
 ## 1. Algoritma Bölümünün Amacı
- Bu bölümde temel olarak labirentin programatik olarak oluşturulması, hücreler arasındaki geçişlerin belirlenmesi, farklı labirent üretim yöntemlerinin uygulanması, labirentin içerisinde 42 deseninin oluşturulması ve giriş ile çıkış arasındaki yolun bulunması işlemleri gerçekleştirildi.
 
-Algoritma tarafında labirent, iki boyutlu bir hücre matrisi olarak ele alındı. Her hücre kendi koordinatlarını, ziyaret edilip edilmediğini ve dört yöndeki duvarlarının durumunu tutmaktadır.
+A-Maze-Ing projesinde algoritma bölümünün temel amacı, verilen konfigürasyon bilgilerine göre bir labirentin programatik olarak oluşturulması, farklı üretim modlarının desteklenmesi, labirentin içerisinde 42 deseninin korunarak oluşturulması, giriş ile çıkış arasında geçerli en kısa yolun bulunması ve oluşturulan labirentin hexadecimal formatta dosyaya aktarılmasıdır.
 
-Genel algoritmik süreç şu şekildedir:
+Algoritma tarafında labirent, iki boyutlu bir hücre matrisi olarak modellenmiştir. Her hücre kendi koordinatlarını, ziyaret durumunu ve North, East, South ve West yönlerindeki duvarlarının durumunu tutmaktadır.
 
-**Grid oluşturma → 42 alanını belirleme → Labirent üretme → Duvarları düzenleme → 42 desenini oluşturma → Giriş/çıkış arasındaki yolu bulma → Labirenti hexadecimal formatta kaydetme**
+Projenin güncel algoritmik akışı genel olarak şu şekildedir:
+
+Config dosyasını oku
+→ Config değerlerini doğrula
+→ Varsa SEED değerini uygula
+→ MazeGenerator oluştur
+→ 42 deseninin koordinatlarını hesapla
+→ ENTRY / EXIT ile 42 deseni çakışmasını kontrol et
+→ 42 hücrelerini visited olarak işaretle
+→ PERFECT değerine göre maze üret
+→ Perfect Maze veya Pac-Man Maze oluştur
+→ 42 desenini fiziksel olarak oluştur
+→ BFS ile ENTRY → EXIT en kısa yolunu bul
+→ Geçerli yol bulunduğunu doğrula
+→ Hücreleri hexadecimal biçime dönüştür
+→ Grid + ENTRY + EXIT + shortest path bilgilerini maze.txt dosyasına yaz
 
 ---
 
-# 2. Cell Sınıfı
+## 2. Cell Sınıfı ve Labirentin Modellenmesi
 
 Labirentin en küçük yapı taşı `Cell` sınıfıdır.
 
-Her hücre içerisinde:
+Her `Cell` nesnesi bir labirent hücresini temsil eder ve temel olarak şu bilgileri tutar:
 
-* `x`: hücrenin yatay koordinatı
-* `y`: hücrenin dikey koordinatı
-* `visited`: hücrenin algoritma tarafından ziyaret edilip edilmediği
-* `walls`: hücrenin dört yönündeki duvarların durumu
+- `x`: hücrenin yatay koordinatı
+- `y`: hücrenin dikey koordinatı
+- `visited`: hücrenin maze generation algoritması tarafından ziyaret edilip edilmediği
+- `walls`: hücrenin dört yönündeki duvarların durumu
 
-tutulmaktadır.
+Duvar yönleri:
 
-Başlangıçta bütün duvarlar kapalıdır:
-
-```text
-N = North
-E = East
-S = South
+N = North  
+E = East  
+S = South  
 W = West
-```
 
-Bir duvar için `True` değeri duvarın bulunduğunu, `False` değeri ise o yönde geçiş bulunduğunu ifade eder.
-
-Bu yapı sayesinde labirent algoritması her hücreyi bağımsız olarak inceleyebilmekte ve gerektiğinde komşu hücreyle arasındaki duvarı kaldırabilmektedir.
-
----
-
-# 3. MazeGenerator Sınıfı
-
-Algoritma bölümünün temel sınıfı `MazeGenerator` sınıfıdır.
-
-Sınıf oluşturulurken labirentin genişliği ve yüksekliği alınır ve bu değerlere göre iki boyutlu bir `Cell` matrisi oluşturulur.
+Bir duvar için `True` değeri ilgili yönde duvar bulunduğunu, `False` değeri ise o yönde geçiş bulunduğunu ifade eder.
 
 Örneğin:
 
-```text
-width = 4
-height = 3
-```
+`cell.walls["E"] = False`
 
-için yapı mantıksal olarak:
+ifadesi hücrenin doğu yönünün açık olduğunu gösterir.
 
-```text
-Cell(0,0) Cell(1,0) Cell(2,0) Cell(3,0)
-Cell(0,1) Cell(1,1) Cell(2,1) Cell(3,1)
-Cell(0,2) Cell(1,2) Cell(2,2) Cell(3,2)
-```
+İki komşu hücre arasındaki fiziksel duvar iki hücre açısından da tutulduğu için duvar değişikliklerinin karşılıklı yapılması gerekir. Örneğin A hücresinin doğusundaki B hücresine geçiş açılıyorsa:
 
-şeklindedir.
-
-Aynı aşamada `_compute_42_pattern_cells()` çağrılarak 42 deseninin labirentin hangi koordinatlarında bulunacağı önceden hesaplanmaktadır.
-
----
-
-# 4. `_compute_42_pattern_cells()`
-
-## Amacı
-
-Labirentin merkezine yerleştirilecek **42 deseninin koordinatlarını hesaplamak** için kullanılır.
-
-42 deseni için 8 hücre genişliğinde ve 5 hücre yüksekliğinde bir alan tanımlanmıştır.
-
-## Algoritması
-
-1. Desenin genişliği `8`, yüksekliği `5` olarak belirlenir.
-2. Labirentin bu deseni içerecek kadar büyük olup olmadığı kontrol edilir.
-3. Labirent küçükse boş liste döndürülür.
-4. Labirentin merkez noktası dikkate alınarak desenin başlangıç koordinatları hesaplanır.
-5. `4` ve `2` rakamlarını oluşturan hücrelerin göreceli koordinatları `pattern_offsets` içerisinde tutulur.
-6. Bu göreceli koordinatlar başlangıç koordinatlarına eklenir.
-7. Gerçek grid koordinatlarının listesi döndürülür.
-
-Merkezleme hesabı:
-
-```text
-start_x = (maze_width - pattern_width) // 2
-start_y = (maze_height - pattern_height) // 2
-```
-
-Böylece labirentin boyutu değişse bile 42 deseni mümkün olduğunca merkezde oluşturulur.
-
----
-
-# 5. `mark_42_pattern_as_visited()`
-
-## Amacı
-
-Labirent üretme algoritmasının 42 deseninin bulunduğu hücrelere girmesini engellemektir.
-
-## Algoritması
-
-1. Önceden hesaplanan `_pattern_cells` kontrol edilir.
-2. Pattern oluşturulamıyorsa labirentin yeterince büyük olmadığı bildirilir.
-3. 42 desenine ait bütün `(x, y)` koordinatları dolaşılır.
-4. İlgili hücrelerin:
-
-```text
-visited = True
-```
-
-değeri atanır.
-
-Bu işlem labirent oluşturulmadan **önce** gerçekleştirilir.
-
-Bunun nedeni DFS tabanlı maze generation algoritmasının bu hücreleri normal bir labirent hücresi olarak kullanmasını engellemektir.
-
----
-
-# 6. `_get_neighbors(cell)`
-
-Bu fonksiyon labirent üretme algoritmasının en önemli yardımcı fonksiyonlarından biridir.
-
-## Amacı
-
-Verilen hücrenin **henüz ziyaret edilmemiş ve grid sınırları içerisinde bulunan komşularını** bulmaktır.
-
-Dört yön kontrol edilir:
-
-```text
-        N
-        ↑
-    W ← C → E
-        ↓
-        S
-```
-
-Burada `C`, mevcut hücredir.
-
-## Algoritması
-
-Mevcut hücrenin:
-
-```text
-x = cell.x
-y = cell.y
-```
-
-koordinatları alınır.
-
-### Kuzey
-
-Eğer:
-
-```text
-y > 0
-```
-
-ve kuzeydeki hücre ziyaret edilmemişse listeye eklenir.
-
-### Güney
-
-Eğer:
-
-```text
-y < height - 1
-```
-
-ve güneydeki hücre ziyaret edilmemişse listeye eklenir.
-
-### Doğu
-
-Eğer:
-
-```text
-x < width - 1
-```
-
-ve doğudaki hücre ziyaret edilmemişse listeye eklenir.
-
-### Batı
-
-Eğer:
-
-```text
-x > 0
-```
-
-ve batıdaki hücre ziyaret edilmemişse listeye eklenir.
-
-Fonksiyon sonunda örneğin şöyle bir yapı dönebilir:
-
-```text
-[
-    ("N", north_cell),
-    ("E", east_cell)
-]
-```
-
-Böylece maze generation algoritması hangi yönlere ilerleyebileceğini bilir.
-
----
-
-# 7. `generate_perfect_maze()`
-
-Bu fonksiyon projenin ana labirent üretme algoritmasıdır.
-
-Burada **Randomized Depth-First Search / Recursive Backtracking** yaklaşımı kullanılmaktadır.
-
-Perfect maze'in temel özelliği iki hücre arasında yalnızca **tek bir yol** bulunmasıdır. Döngüler bulunmaz.
-
-## Algoritmanın Çalışması
-
-İlk hücre:
-
-```text
-grid[0][0]
-```
-
-başlangıç hücresi olarak seçilir.
-
-Bu hücre ziyaret edilmiş olarak işaretlenir.
-
-Ardından bir `stack` oluşturulur.
-
-```text
-stack = [start_cell]
-```
-
-### Ana döngü
-
-Stack boş olmadığı sürece algoritma devam eder.
-
-### 1. Mevcut hücreyi al
-
-Stack'in sonundaki hücre:
-
-```text
-current = stack[-1]
-```
-
-olarak seçilir.
-
-### 2. Kullanılabilir komşuları bul
-
-```text
-valid_moves = _get_neighbors(current)
-```
-
-ile ziyaret edilmemiş komşular bulunur.
-
-### 3. Rastgele komşu seç
-
-Eğer kullanılabilir komşu varsa:
-
-```text
-random.choice(valid_moves)
-```
-
-ile rastgele bir yön ve hücre seçilir.
-
-Bu rastgele seçim her çalıştırmada farklı labirentlerin üretilebilmesini sağlar.
-
-### 4. İki hücre arasındaki duvarı kaldır
-
-Örneğin mevcut hücreden doğuya gidiliyorsa:
-
-```text
-current.walls["E"] = False
-next_cell.walls["W"] = False
-```
+A.E = False  
+B.W = False
 
 olmalıdır.
 
-Bu nedenle karşılıklı duvarları belirlemek için:
-
-```text
-N ↔ S
-E ↔ W
-```
-
-eşleştirmesi kullanılmıştır.
-
-### 5. Yeni hücreyi ziyaret edildi olarak işaretle
-
-```text
-next_cell.visited = True
-```
-
-### 6. Stack'e ekle
-
-Yeni hücre:
-
-```text
-stack.append(next_cell)
-```
-
-ile stack'e eklenir.
-
-Algoritma buradan ilerlemeye devam eder.
-
-### 7. Çıkmaz durumunda geri dön
-
-Eğer mevcut hücrenin ziyaret edilmemiş komşusu kalmamışsa:
-
-```text
-stack.pop()
-```
-
-yapılır.
-
-Böylece algoritma önceki hücreye geri döner.
-
-Bu işlem **backtracking** mekanizmasıdır.
-
-Özet akış:
-
-```text
-Başlangıç hücresini seç
-        ↓
-Visited yap
-        ↓
-Stack'e ekle
-        ↓
-Komşu var mı?
-    ↙       ↘
-  EVET      HAYIR
-   ↓           ↓
-Rastgele      Stack'ten
-komşu seç     çıkar
-   ↓
-Duvarı kaldır
-   ↓
-Visited yap
-   ↓
-Stack'e ekle
-   ↓
-Tekrarla
-```
+Bu karşılıklı duvar mantığı maze generation, Pac-Man dönüşümü ve 42 deseninin oluşturulması sırasında korunmaktadır.
 
 ---
 
-# 8. `generate_pacman_maze()`
+## 3. MazeGenerator Sınıfı
 
-Bu fonksiyon alternatif maze generation yöntemidir.
+Labirent üretim ve çözüm algoritmalarının temel sınıfı `MazeGenerator` sınıfıdır.
 
-İlk olarak:
+Sınıf oluşturulurken:
 
-```text
-generate_perfect_maze()
-```
+`MazeGenerator(width, height)`
 
-çalıştırılır.
+şeklinde labirentin genişliği ve yüksekliği alınır.
 
-Böylece başlangıçta perfect maze oluşturulur.
-
-Ardından:
-
-```text
-_remove_dead_ends()
-```
-
-çalıştırılır.
-
-Amaç perfect maze içerisindeki bazı çıkmaz yolları kaldırarak daha fazla alternatif geçiş oluşturmak ve labirenti **Pac-Man benzeri döngülü bir yapıya** dönüştürmektir.
-
----
-
-# 9. `_remove_dead_ends()`
-
-## Amacı
-
-Perfect maze içerisindeki dead-end yani çıkmaz hücreleri tespit ederek bunların bazı duvarlarını kaldırmaktır.
-
-Bir hücrenin dört duvarından **üçü kapalıysa**, yalnızca tek çıkışı vardır.
-
-Bu nedenle:
-
-```text
-closed wall count == 3
-```
-
-durumu dead-end olarak değerlendirilir.
-
-## Algoritması
-
-1. Grid içerisindeki bütün hücreler dolaşılır.
-2. 42 desenine ait hücreler atlanır.
-3. Hücrenin kapalı duvarları bulunur.
-4. Kapalı duvar sayısı 3 ise hücre dead-end olarak kabul edilir.
-5. Grid sınırları dikkate alınarak kırılabilecek duvarlar belirlenir.
-6. Bu duvarlardan biri rastgele seçilir.
-7. Seçilen duvar açılır.
-8. Komşu hücrenin karşılık gelen duvarı da açılır.
+Bu değerlere göre iki boyutlu bir `Cell` matrisi oluşturulur.
 
 Örneğin:
 
-```text
-cell.walls["E"] = False
-```
+WIDTH = 4  
+HEIGHT = 3
 
-yapılmışsa komşu hücre için:
+için grid mantıksal olarak şu şekildedir:
 
-```text
-neighbor.walls["W"] = False
-```
+Cell(0,0) Cell(1,0) Cell(2,0) Cell(3,0)  
+Cell(0,1) Cell(1,1) Cell(2,1) Cell(3,1)  
+Cell(0,2) Cell(1,2) Cell(2,2) Cell(3,2)
 
-yapılır.
-
-Böylece hücreler arasındaki duvar bilgisi tutarlı kalır.
+`MazeGenerator` oluşturulduğu sırada `_compute_42_pattern_cells()` fonksiyonu da çağrılarak 42 desenine ait koordinatlar önceden hesaplanır.
 
 ---
 
-# 10. `_close_cell_completely(x, y)`
+## 4. `_compute_42_pattern_cells()` – 42 Deseninin Koordinatlarının Hesaplanması
 
-## Amacı
+Bu fonksiyon labirentin içerisinde oluşturulacak 42 deseninin hangi hücrelerde bulunacağını hesaplar.
 
-Belirtilen hücreyi tamamen kapatarak 42 deseninin fiziksel duvarlarını oluşturmaktır.
+42 deseni için:
 
-Hücrenin:
+`pattern_width = 8`  
+`pattern_height = 5`
 
-```text
-N
-S
-E
-W
-```
+boyutlarında bir alan kullanılmaktadır.
 
-duvarlarının tamamı `True` yapılır.
+Öncelikle labirentin bu deseni içerecek kadar büyük olup olmadığı kontrol edilir. Labirent yeterince büyük değilse boş bir koordinat listesi döndürülür.
 
-Ancak yalnızca hücrenin kendi duvarlarını kapatmak yeterli değildir.
+Desenin başlangıç koordinatları:
 
-Örneğin:
+`start_x = (width - pattern_width) // 2`  
+`start_y = (height - pattern_height) // 2`
 
-```text
-Cell A → E duvarı
-Cell B → W duvarı
-```
+formülüyle hesaplanır.
 
-aynı fiziksel duvarı temsil etmektedir.
+Bu işlem 42 deseninin labirentin mümkün olduğunca merkezinde bulunmasını sağlar.
 
-Bu nedenle fonksiyon komşu hücrelerin ilgili duvarlarını da kapatmaktadır.
+Daha sonra `pattern_offsets` içerisinde 4 ve 2 rakamlarını oluşturan göreceli koordinatlar tutulur. Bu koordinatlar `start_x` ve `start_y` değerlerine eklenerek gerçek grid koordinatları elde edilir.
 
-Sonuç olarak hücre çevresindeki bütün geçişler kapatılmış olur.
+Sonuç `_pattern_cells` içerisinde saklanır.
 
 ---
 
-# 11. `add_42()`
+## 5. `is_pattern_cell()` – 42 Deseni Kontrolü
 
-Bu fonksiyon önceden hesaplanan 42 pattern koordinatlarını kullanarak labirentin içerisinde gerçek 42 desenini oluşturur.
-
-Algoritma:
-
-```text
-42 koordinatlarını al
-        ↓
-Her koordinatı dolaş
-        ↓
-_close_cell_completely(x, y)
-        ↓
-Hücrenin dört duvarını kapat
-        ↓
-Komşuların karşı duvarlarını kapat
-```
-
-şeklindedir.
-
-Bu sayede 42 yalnızca görsel olarak eklenen bir karakter değildir; doğrudan **labirentin topolojisinin bir parçasıdır.**
-
----
-
-# 12. `solve_maze(start, end)`
-
-Labirentin çözümünde **Breadth-First Search (BFS)** algoritması kullanılmıştır.
-
-BFS kullanılmasının önemli nedeni, ağırlıksız bir grid üzerinde giriş ile çıkış arasındaki **en kısa yolu bulabilmesidir.**
-
-Fonksiyon:
-
-```text
-start = giriş koordinatı
-end = çıkış koordinatı
-```
-
-parametrelerini alır ve sonucu:
-
-```text
-["E", "E", "S", "W", ...]
-```
-
-şeklinde yön listesi olarak döndürür.
-
----
-
-# 13. BFS Algoritmasının Detaylı Çalışması
-
-İlk olarak başlangıç hücresi alınır.
-
-Ardından BFS için:
-
-```text
-queue
-visited
-parent_map
-```
-
-yapıları oluşturulur.
-
-## Queue
-
-İncelenecek hücreleri FIFO mantığıyla tutar.
-
-Python tarafında:
-
-```text
-deque
-```
-
-kullanılmıştır.
-
-## Visited
-
-Aynı hücrenin tekrar ziyaret edilmesini önler.
-
-Başlangıç koordinatı ilk olarak visited kümesine eklenir.
-
-## Parent Map
-
-Bir hücreye hangi hücreden ve hangi yönde ulaşıldığını saklar.
+`MazeGenerator` sınıfına eklenen `is_pattern_cell(x, y)` metodunun amacı, verilen koordinatın 42 deseninin içerisinde bulunup bulunmadığını belirlemektir.
 
 Mantıksal olarak:
 
-```text
-current cell → previous cell + direction
-```
+`(x, y) in _pattern_cells`
 
-bilgisini tutar.
+kontrolü yapılır.
 
-Bu bilgi daha sonra gerçek çözüm yolunun geriye doğru oluşturulması için kullanılır.
+Koordinat 42 desenine aitse `True`, değilse `False` döndürülür.
+
+Bu kontrol özellikle ENTRY ve EXIT koordinatlarının doğrulanması açısından önemlidir. 42 desenini oluşturan hücreler daha sonra tamamen kapatıldığı için ENTRY veya EXIT bu hücrelerden birine denk gelirse geçerli bir çözüm yolu oluşturulamayabilir.
+
+Bu nedenle ana programda `MazeGenerator` oluşturulduktan sonra ENTRY ve EXIT koordinatları kontrol edilir.
+
+ENTRY → 42 pattern içerisinde mi? → Evetse hata  
+EXIT → 42 pattern içerisinde mi? → Evetse hata
+
+Böylece program geçersiz bir labirent üretmeye başlamadan önce problem tespit edilir.
 
 ---
 
-# 14. BFS Komşu Kontrolü
+## 6. `mark_42_pattern_as_visited()`
 
-Her hücre için dört yön tanımlanmıştır:
+42 deseninin yalnızca sonradan çizilmesi yeterli değildir. Maze generation algoritmasının da bu bölgeyi normal bir koridor gibi kullanmasının engellenmesi gerekir.
 
-```text
-N → (0, -1)
-S → (0, +1)
-E → (+1, 0)
+Bu nedenle maze oluşturulmadan önce:
+
+`mark_42_pattern_as_visited()`
+
+çalıştırılır.
+
+Fonksiyon `_pattern_cells` içerisindeki bütün koordinatları dolaşır ve ilgili hücreler için:
+
+`visited = True`
+
+değerini atar.
+
+Böylece DFS algoritması bu hücreleri daha önceden ziyaret edilmiş olarak görür ve 42 deseninin içerisinden geçmeye çalışmaz.
+
+Bu aşamada 42 henüz fiziksel olarak oluşturulmamıştır. Yalnızca generation algoritması açısından rezerve edilmiş bir alan haline getirilmiştir.
+
+---
+
+## 7. `_get_neighbors()` – Geçerli Komşuların Bulunması
+
+Bu fonksiyon DFS algoritmasının mevcut hücreden hangi hücrelere ilerleyebileceğini belirler.
+
+Bir hücre için dört yön kontrol edilir:
+
+North  
+South  
+East  
+West
+
+Ancak bir hücrenin komşu listesine eklenebilmesi için iki temel koşul bulunmaktadır:
+
+1. Grid sınırları içerisinde olması
+2. Daha önce ziyaret edilmemiş olması
+
+Örneğin kuzey yönü için:
+
+`y > 0`
+
+olmalı ve:
+
+`grid[y - 1][x].visited == False`
+
+olmalıdır.
+
+Benzer kontroller diğer üç yön için de gerçekleştirilir.
+
+Fonksiyon sonuç olarak örneğin:
+
+`[("N", north_cell), ("E", east_cell)]`
+
+gibi kullanılabilir yön ve hücre çiftlerinden oluşan bir liste döndürür.
+
+---
+
+## 8. `generate_perfect_maze()` – Perfect Maze Üretimi
+
+Perfect maze üretiminde Randomized Depth-First Search, yani Randomized DFS ve Recursive Backtracking yaklaşımı kullanılmaktadır.
+
+Perfect maze'in temel özelliği, erişilebilir iki nokta arasında tek bir yol bulunması ve maze içerisinde cycle/loop bulunmamasıdır.
+
+Algoritma başlangıç hücresi olarak:
+
+`grid[0][0]`
+
+hücresini kullanır.
+
+Bu hücre `visited` olarak işaretlenir ve stack içerisine eklenir:
+
+`stack = [start_cell]`
+
+Stack boş olmadığı sürece algoritma çalışmaya devam eder.
+
+Mevcut hücre:
+
+`current = stack[-1]`
+
+ile alınır.
+
+Ardından:
+
+`_get_neighbors(current)`
+
+ile ziyaret edilmemiş geçerli komşular bulunur.
+
+Eğer geçerli komşu varsa:
+
+`random.choice(valid_moves)`
+
+ile rastgele bir komşu seçilir.
+
+Daha sonra mevcut hücre ile yeni hücre arasındaki karşılıklı duvarlar kaldırılır.
+
+Örneğin doğuya ilerleniyorsa:
+
+`current.walls["E"] = False`  
+`next_cell.walls["W"] = False`
+
+yapılır.
+
+Yeni hücre `visited` yapılır ve stack'e eklenir.
+
+Eğer mevcut hücrenin ziyaret edilmemiş hiçbir komşusu kalmamışsa:
+
+`stack.pop()`
+
+yapılarak önceki hücreye geri dönülür.
+
+Bu işlem backtracking olarak adlandırılır.
+
+Genel akış:
+
+Başlangıç hücresi  
+→ Visited yap  
+→ Stack'e ekle  
+→ Ziyaret edilmemiş komşu var mı?  
+→ Varsa rastgele seç  
+→ Duvarları aç  
+→ Yeni hücreyi visited yap  
+→ Stack'e ekle  
+→ Yoksa stack'ten çıkar  
+→ İşleme devam et
+
+---
+
+## 9. Seed ile Tekrar Üretilebilirlik
+
+Maze generation sırasında `random.choice()` kullanıldığı için normal şartlarda programın farklı çalıştırmalarında farklı seçimler yapılabilir.
+
+Ancak proje aynı labirentin gerektiğinde yeniden oluşturulabilmesini desteklemektedir.
+
+Bunun için config içerisinde opsiyonel:
+
+`SEED=42`
+
+gibi bir değer kullanılabilir.
+
+Config doğrulandıktan sonra SEED bulunuyorsa:
+
+`random.seed(config['SEED'])`
+
+çalıştırılır.
+
+Seed, Python rastgele sayı üretecinin başlangıç durumunu belirler.
+
+Böylece aynı WIDTH, HEIGHT, PERFECT ve SEED değerleri ve aynı algoritmik koşullar kullanıldığında aynı rastgele seçim dizisi tekrar oluşturulabilir.
+
+Mantık:
+
+SEED = 42  
+→ random.seed(42)  
+→ random.choice(...)  
+→ Belirli seçim dizisi  
+→ Maze
+
+Tekrar aynı SEED kullanılırsa aynı seçim dizisi oluşur ve aynı maze yeniden üretilebilir.
+
+Bu özellik özellikle testlerde ve hata ayıklama işlemlerinde önemlidir.
+
+---
+
+## 10. `generate_pacman_maze()` – Pac-Man Maze Üretimi
+
+Pac-Man modunun amacı perfect maze'in tek-yollu yapısını değiştirerek daha fazla alternatif rota ve loop içeren bir labirent oluşturmaktır.
+
+Güncel algoritmanın temel akışı:
+
+`generate_perfect_maze()`  
+→ `_remove_dead_ends()`  
+→ `_add_loops(2)`
+
+şeklindedir.
+
+İlk aşamada sağlam ve bağlı bir perfect maze oluşturulur.
+
+Daha sonra dead-end noktalarının güvenli olanları azaltılır.
+
+Son aşamada ek loop'lar oluşturularak maze'in Pac-Man benzeri alternatif rotalara sahip olması sağlanır.
+
+---
+
+## 11. Dead-End Nedir?
+
+Dead-end, Türkçe olarak çıkmaz sokak anlamına gelir.
+
+Bir hücrenin dört duvarından üçü kapalıysa yalnızca tek yönden giriş/çıkış yapılabilir.
+
+Yani:
+
+`closed_walls == 3`
+
+ise hücre dead-end olarak değerlendirilir.
+
+Perfect maze içerisinde bu tür çıkmaz noktalar normaldir. Ancak Pac-Man tarzı maze'de alternatif yolların bulunması istendiğinden bu noktaların bir kısmı azaltılmaktadır.
+
+---
+
+## 12. `_is_safe_to_break()` – Güvenli Duvar Açma Kontrolü
+
+Pac-Man maze oluştururken herhangi bir duvarın rastgele kaldırılması doğru değildir.
+
+Kontrolsüz duvar açılması 42 deseninin bozulmasına, grid dışına geçiş oluşmasına veya 3×3 tamamen açık alanların oluşmasına neden olabilir.
+
+Bu nedenle `_is_safe_to_break(x, y, direction)` fonksiyonu kullanılmaktadır.
+
+Fonksiyon önce verilen yönün koordinat farkını belirler:
+
+N → (0, -1)  
+S → (0, +1)  
+E → (+1, 0)  
 W → (-1, 0)
-```
 
-Ancak algoritma doğrudan komşuya ilerlemez.
+Ardından komşu koordinat hesaplanır.
 
-Önce ilgili yöndeki duvar kontrol edilir.
+Komşu grid dışındaysa duvar açılamaz.
+
+Ayrıca duvar açma işleminin 42 pattern hücrelerini etkilememesi gerekir.
+
+Daha sonra aday duvar geçici olarak açılır.
 
 Örneğin:
 
-```text
-if not current_cell.walls["E"]:
-```
+`current.E = False`  
+`neighbor.W = False`
+
+yapılır.
+
+Bu geçici durum üzerinden çevrede oluşabilecek 3×3 bölgeler kontrol edilir.
+
+Eğer tamamen açık bir 3×3 alan oluşuyorsa işlem güvenli değildir ve fonksiyon `False` döndürür.
+
+Kontrol tamamlandıktan sonra geçici olarak açılmış duvar eski durumuna getirilir.
+
+Yani `_is_safe_to_break()` maze'i kalıcı olarak değiştirmez. Yalnızca "Bu duvar gerçekten açılırsa yapı güvenli kalır mı?" sorusuna cevap verir.
+
+---
+
+## 13. `_remove_dead_ends()` – Pac-Man için Çıkmazların Azaltılması
+
+Bu fonksiyon perfect maze içerisindeki dead-end hücrelerin sayısını azaltır.
+
+Grid içerisindeki hücreler taranır.
+
+42 desenine ait hücreler işleme alınmaz.
+
+Her hücrenin kapalı duvarları hesaplanır.
+
+Eğer:
+
+`closed_walls == 3`
+
+ise hücre dead-end olarak kabul edilir.
+
+Daha sonra sınırlar içerisinde kırılabilecek duvarlar belirlenir.
+
+Ancak bütün aday duvarlar doğrudan açılmaz.
+
+Her aday:
+
+`_is_safe_to_break(...)`
+
+ile kontrol edilir.
+
+Yalnızca güvenli duvarlar `safe_walls` listesine alınır.
+
+Güvenli duvar varsa bunlardan biri rastgele seçilir ve hem mevcut hücrenin hem de komşu hücrenin karşılıklı duvarı açılır.
+
+Fonksiyon grid'i gerektiğinde tekrar kontrol ederek yeni durumda azaltılabilecek başka dead-end'ler olup olmadığını değerlendirir.
+
+Burada önemli nokta, algoritmanın bütün dead-end'leri koşulsuz yok etmeye çalışmamasıdır. Yalnızca maze kurallarını bozmadan kaldırılabilecek çıkmazlar azaltılır.
+
+---
+
+## 14. `_add_loops()` – Loop / Cycle Oluşturulması
+
+Pac-Man maze ile perfect maze arasındaki temel farklardan biri loop/cycle yapısıdır.
+
+Perfect maze'de iki nokta arasında tek bir rota bulunur.
+
+Loop eklendiğinde ise bazı noktalara birden fazla yoldan ulaşılabilir.
+
+Pac-Man modunda `_add_loops()` fonksiyonunun amacı güvenli ek duvarlar açarak bu alternatif rotaları oluşturmaktır.
+
+Güncel Pac-Man generation akışında:
+
+`_add_loops(2)`
+
+kullanılır.
+
+Fonksiyon grid üzerinde kapalı duvar adaylarını tarar.
+
+42 desenine ait hücreler atlanır.
+
+Grid sınırı dışındaki komşular dikkate alınmaz.
+
+Zaten açık olan duvarlar atlanır.
+
+Aday duvarlar `_is_safe_to_break()` ile kontrol edilir.
+
+Güvenli adaylar listeye eklenir ve liste rastgele karıştırılır.
+
+Daha sonra minimum loop sayısına ulaşılana kadar uygun duvarlar açılır.
+
+Bir duvar açıldığında hem mevcut hücrenin hem de komşu hücrenin karşı duvarı açılır.
+
+Bu sayede Pac-Man maze, perfect maze'den farklı olarak alternatif rotalara sahip olur.
+
+---
+
+## 15. `_close_cell_completely()`
+
+Bu fonksiyon 42 desenine ait bir hücreyi fiziksel olarak tamamen kapatmak için kullanılır.
+
+Hücrenin N, E, S ve W duvarlarının tamamı `True` yapılır.
+
+Ancak yalnızca mevcut hücrenin duvarlarını kapatmak yeterli değildir.
+
+Örneğin Cell A'nın East duvarı ile Cell B'nin West duvarı aynı fiziksel duvarı temsil eder.
+
+Bu nedenle komşu hücrelerin karşılık gelen duvarları da kapatılır.
+
+Sonuçta ilgili hücre labirentin geri kalanından tamamen izole edilir.
+
+---
+
+## 16. `add_42()` – 42 Deseninin Fiziksel Olarak Oluşturulması
+
+Maze generation tamamlandıktan sonra `add_42()` çalıştırılır.
+
+Daha önce `_compute_42_pattern_cells()` tarafından hesaplanan bütün koordinatlar dolaşılır.
+
+Her pattern hücresi için:
+
+`_close_cell_completely(x, y)`
+
+çağrılır.
+
+Böylece 42 deseni yalnızca ekranda çizilen görsel bir sembol değildir.
+
+42 hücreleri gerçekten geçilemez hale geldiği için desen doğrudan labirentin topolojisinin bir parçasıdır.
+
+42 sistemi üç aşamada düşünülebilir:
+
+`_compute_42_pattern_cells()`  
+→ 42'nin nerede olacağını hesaplar
+
+`mark_42_pattern_as_visited()`  
+→ DFS'in bu alana girmesini engeller
+
+`add_42()`  
+→ Hücreleri fiziksel olarak tamamen kapatır
+
+---
+
+## 17. `solve_maze()` – BFS ile En Kısa Yolun Bulunması
+
+Maze oluşturulduktan sonra ENTRY ile EXIT arasındaki çözüm yolunu bulmak için Breadth-First Search, yani BFS kullanılmaktadır.
+
+BFS'in tercih edilmesinin temel nedeni, ağırlıksız bir graph/grid üzerinde en kısa yolu garanti etmesidir.
+
+Fonksiyon:
+
+`start = ENTRY`  
+`end = EXIT`
+
+koordinatlarını alır.
+
+BFS sırasında üç önemli veri yapısı kullanılır:
+
+- `queue`
+- `visited`
+- `parent_map`
+
+### Queue
+
+`deque` kullanılarak FIFO mantığında çalışır.
+
+İlk giren hücre ilk işlenen hücre olur.
+
+### Visited
+
+Daha önce incelenmiş koordinatların tekrar queue'ya eklenmesini engeller.
+
+### Parent Map
+
+Bir hücreye hangi hücreden ve hangi yönde gelindiğini saklar.
+
+Bu bilgiler BFS tamamlandıktan sonra shortest path'in yeniden oluşturulmasını sağlar.
+
+---
+
+## 18. BFS Komşu Kontrolü
+
+BFS her hücre için şu yönleri değerlendirir:
+
+N → (0, -1)  
+S → (0, +1)  
+E → (+1, 0)  
+W → (-1, 0)
+
+Ancak komşu hücrenin bulunması tek başına yeterli değildir.
+
+Öncelikle o yönde duvar bulunup bulunmadığı kontrol edilir.
+
+Örneğin:
+
+`if not current_cell.walls["E"]`
 
 ise doğu yönünde geçiş bulunmaktadır.
 
-Sonrasında yeni koordinat:
-
-```text
-nx = current.x + dx
-ny = current.y + dy
-```
-
-şeklinde hesaplanır.
-
 Yeni koordinat:
 
-* grid sınırları içerisindeyse
-* daha önce ziyaret edilmemişse
+`nx = current.x + dx`  
+`ny = current.y + dy`
 
-queue içerisine eklenir.
+ile hesaplanır.
 
-Aynı zamanda:
+Koordinat grid sınırları içerisindeyse ve daha önce ziyaret edilmemişse queue içerisine eklenir.
 
-```text
-parent_map[new_cell] = (current_cell, direction)
-```
-
-mantığıyla nereden gelindiği kaydedilir.
+Aynı zamanda `parent_map` içerisine önceki koordinat ve kullanılan yön kaydedilir.
 
 ---
 
-# 15. BFS ile Yolun Geri Oluşturulması
+## 19. Path Reconstruction – Yolun Geri Oluşturulması
 
-BFS çıkış hücresine ulaştığında yalnızca çıkışı bulmuş olur.
+BFS EXIT hücresini bulduğunda en kısa yolun bağlantıları `parent_map` içerisinde bulunmaktadır.
 
-Gerçek yolu oluşturmak için `parent_map` kullanılır.
+Algoritma EXIT koordinatından başlayarak parent bilgilerini takip eder:
 
-Algoritma çıkıştan başlar:
-
-```text
-curr = exit
-```
-
-ve parent bilgilerini kullanarak geriye doğru ilerler:
-
-```text
-EXIT
- ↑
-previous
- ↑
-previous
- ↑
-previous
- ↑
+EXIT  
+↑  
+Parent  
+↑  
+Parent  
+↑  
+Parent  
+↑  
 ENTRY
-```
 
 Bu sırada yönler `path` listesine eklenir.
 
-Ancak yol tersten oluşturulduğu için sonunda:
+Ancak işlem EXIT'ten ENTRY'ye doğru gerçekleştirildiği için path başlangıçta ters sıradadır.
 
-```text
-path.reverse()
-```
+Bu nedenle:
+
+`path.reverse()`
 
 uygulanır.
 
-Böylece sonuç:
+Sonuç:
 
-```text
 ENTRY → ... → EXIT
-```
 
 sırasına çevrilir.
 
-Eğer çıkışa ulaşılabilecek bir yol bulunamamışsa boş liste:
+Fonksiyon sonucu örneğin:
 
-```text
-[]
-```
+`["E", "E", "S", "S", "W", ...]`
 
-döndürülür.
+şeklindedir.
+
+Eğer çıkışa ulaşılabilecek bir yol bulunamazsa `solve_maze()` boş liste döndürür.
 
 ---
 
-# 16. `get_hex_value()`
+## 20. BFS Boş Yol Güvenlik Kontrolü
 
-Labirent dosyaya kaydedilirken her hücrenin dört duvarını ayrı ayrı yazmak yerine hexadecimal bir değer kullanılmaktadır.
+Önemli hata kontrollerinden biri maze çözüldükten sonra yapılmaktadır.
 
-Duvarlara bit değerleri verilmiştir:
+`solve_maze()` herhangi bir nedenle EXIT'e ulaşamazsa boş liste:
 
-| Duvar | Değer |
-| ----- | ----: |
-| North |     1 |
-| East  |     2 |
-| South |     4 |
-| West  |     8 |
+`[]`
 
-Kapalı olan duvarların değerleri toplanır.
+döndürebilir.
+
+Bu sonuç doğrudan dosyaya yazılırsa program teknik olarak çalışmış görünmesine rağmen geçersiz bir maze çıktısı oluşturabilir.
+
+Bu nedenle ana programda:
+
+`if not shortest_path`
+
+kontrolü yapılmaktadır.
+
+Geçerli yol bulunamazsa `ValueError` oluşturularak program hata koduyla sonlandırılır.
+
+Akış:
+
+Maze üretildi  
+→ BFS çalıştı  
+→ Path bulundu mu?  
+→ Evetse kaydet  
+→ Hayırsa hata ver
+
+Bu güvenlik kontrolü programın sessizce hatalı bir çıktı üretmesini engeller.
+
+---
+
+## 21. `read_config()` – Config Dosyasının Okunması
+
+Ana program çalıştırılırken config dosyasının yolu command-line argument olarak alınır.
 
 Örneğin:
 
-```text
-North + East
+`python3 a_maze_ing.py config.txt`
+
+Config dosyası `read_config()` tarafından satır satır okunur.
+
+Boş satırlar ve `#` ile başlayan yorum satırları atlanır.
+
+Diğer satırlarda:
+
+`KEY=VALUE`
+
+yapısı ayrıştırılır.
+
+Örneğin:
+
+WIDTH=20  
+HEIGHT=15  
+ENTRY=0,0  
+EXIT=19,14  
+OUTPUT_FILE=maze.txt  
+PERFECT=False  
+SEED=42
+
+gibi bilgiler dictionary içerisinde saklanır.
+
+---
+
+## 22. `validate_config()` – Config Doğrulaması
+
+Config dosyasının okunması tek başına yeterli değildir. Gelen değerlerin geçerli olup olmadığı kontrol edilmelidir.
+
+Zorunlu alanlar:
+
+- WIDTH
+- HEIGHT
+- ENTRY
+- EXIT
+- OUTPUT_FILE
+- PERFECT
+
+olarak kontrol edilir.
+
+`WIDTH` ve `HEIGHT` integer'a çevrilir.
+
+ENTRY ve EXIT:
+
+`x,y`
+
+formatından:
+
+`(x, y)`
+
+tuple yapısına dönüştürülür.
+
+SEED mevcutsa integer'a çevrilir. Bulunmuyorsa `None` kullanılır.
+
+Daha sonra:
+
+- WIDTH ve HEIGHT'in sıfırdan büyük olması
+- ENTRY'nin grid içerisinde bulunması
+- EXIT'in grid içerisinde bulunması
+- ENTRY ve EXIT'in birbirinden farklı olması
+
+kontrol edilir.
+
+MazeGenerator oluşturulduktan sonra ayrıca ENTRY ve EXIT'in 42 pattern hücrelerinden birine denk gelip gelmediği kontrol edilir.
+
+Bu doğrulamalar hatalı girdilerin maze algoritmasına ulaşmadan engellenmesini sağlar.
+
+---
+
+## 23. `get_hex_value()` – Hexadecimal Duvar Kodlaması
+
+Labirentin her hücresinin dört duvarını ayrı ayrı dosyaya yazmak yerine bit tabanlı bir kodlama kullanılmaktadır.
+
+Duvar değerleri:
+
+North = 1  
+East = 2  
+South = 4  
+West = 8
+
+şeklindedir.
+
+Kapalı olan duvarların değerleri toplanır.
+
+Örneğin North ve East kapalıysa:
+
 1 + 2 = 3
-```
-
-sonuç:
-
-```text
-3
-```
 
 olur.
 
 Bütün duvarlar kapalıysa:
 
-```text
 1 + 2 + 4 + 8 = 15
-```
 
-15 hexadecimal sistemde:
+elde edilir.
 
-```text
+15 sayısının hexadecimal karşılığı:
+
 F
-```
 
-olarak gösterilir.
+olduğu için:
 
-Dolayısıyla `F`, dört tarafı tamamen kapalı bir hücre anlamına gelir.
+F = dört duvar da kapalı
 
-Bu yöntem sayesinde her hücrenin duvar bilgisi tek hexadecimal karakter ile temsil edilebilir.
+anlamına gelir.
+
+Böylece bir hücrenin bütün duvar bilgisi tek hexadecimal karakterle temsil edilebilir.
 
 ---
 
-# 17. `save_maze_to_file()`
+## 24. `save_maze_to_file()` – Maze Çıktısının Kaydedilmesi
 
-Oluşturulan maze'in dosyaya aktarılması bu fonksiyonla gerçekleştirilir.
+Labirentin son hali `save_maze_to_file()` ile çıktı dosyasına aktarılır.
 
-Her hücre için:
+Grid içerisindeki her hücre için:
 
-```text
-cell.get_hex_value()
-```
+`cell.get_hex_value()`
 
-çalıştırılır.
+çağrılır.
 
-Bir satırdaki hücrelerin hexadecimal değerleri yan yana eklenerek maze satırı oluşturulur.
+Aynı satırdaki hücrelerin hexadecimal değerleri yan yana getirilir.
+
+Grid tamamlandıktan sonra dosyaya sırasıyla:
+
+1. ENTRY
+2. EXIT
+3. SHORTEST PATH
+
+bilgileri yazılır.
 
 Örneğin:
 
-```text
-D3B
-BAA
-C46
-```
+91393915391555391513  
+AAAAAA83C2853946C3AA  
+...  
+C46C45445456C456C556
 
-gibi bir çıktı elde edilebilir.
+0,0  
+19,14  
+EESSENNESSSWSWWSEEEESSSEESSES...
 
-Grid yazıldıktan sonra:
+çıktısında:
 
-1. Entry koordinatı
-2. Exit koordinatı
-3. Çözüm yolu
+- üst bölüm maze'in hexadecimal grid'idir
+- `0,0` ENTRY'dir
+- `19,14` EXIT'tir
+- son satır BFS tarafından bulunan en kısa çözüm yoludur
 
-dosyaya eklenmektedir.
+Son satırdaki:
 
-Bu sayede oluşturulan maze daha sonra görselleştirme tarafı tarafından tekrar okunabilir.
+N = North  
+S = South  
+E = East  
+W = West
 
----
-
-# 18. Ana Program ile Algoritmanın Bağlantısı
-
-Ana program önce config dosyasını okuyup doğrulamaktadır.
-
-Config içerisinde:
-
-```text
-WIDTH
-HEIGHT
-ENTRY
-EXIT
-OUTPUT_FILE
-PERFECT
-```
-
-değerleri bulunmaktadır.
-
-Ardından:
-
-```text
-MazeGenerator(width, height)
-```
-
-oluşturulur.
-
-Daha sonra sırasıyla:
-
-```text
-mark_42_pattern_as_visited()
-```
-
-çalıştırılır.
-
-`PERFECT=True` ise:
-
-```text
-generate_perfect_maze()
-```
-
-aksi durumda:
-
-```text
-generate_pacman_maze()
-```
-
-çalıştırılır.
-
-Sonrasında:
-
-```text
-add_42()
-```
-
-ile 42 deseni oluşturulur.
-
-Son aşamada maze dosyaya kaydedilir.
+karakterlerinin her biri bir hareketi temsil eder.
 
 ---
 
-# 19. Algoritma Bölümünde Yaptığım İşlerin Özeti
+## 25. Ana Programın Tam Çalışma Sırası
 
-Projede algoritma bölümünde gerçekleştirdiğim temel işlemler şunlardır:
+Projenin algoritma tarafının uçtan uca çalışma sırası şöyledir:
 
-* Labirenti iki boyutlu `Cell` matrisi olarak modellemek.
-* Her hücrenin dört yönündeki duvar durumunu yönetmek.
-* Hücrelerin ziyaret durumlarını takip etmek.
-* Geçerli ve ziyaret edilmemiş komşuları belirleyen algoritmayı oluşturmak.
-* Randomized DFS / Recursive Backtracking kullanarak perfect maze üretmek.
-* Stack yapısıyla backtracking gerçekleştirmek.
-* Rastgele seçim kullanarak her çalıştırmada farklı labirentler üretmek.
-* Dead-end hücreleri belirlemek ve alternatif yollar oluşturarak Pac-Man tipi maze üretmek.
-* Labirentin merkezinde 42 deseninin bulunacağı koordinatları hesaplamak.
-* Maze generation algoritmasının 42 bölgesine girmesini engellemek.
-* 42 hücrelerinin duvarlarını tamamen kapatarak deseni labirentin topolojisine eklemek.
-* BFS algoritması kullanarak giriş ve çıkış arasındaki en kısa yolu hesaplamak.
-* `queue`, `visited` ve `parent_map` veri yapılarını kullanarak BFS gerçekleştirmek.
-* Bulunan yolu N, S, E ve W yönlerinden oluşan bir listeye dönüştürmek.
-* Hücre duvarlarını bit değerleri kullanarak hexadecimal biçimde temsil etmek.
-* Oluşturulan labirenti, giriş/çıkış koordinatlarını ve çözüm yolunu dosyaya aktarılabilecek hale getirmek.
-
----
-
-# 20. Kullanılan Temel Algoritmalar ve Veri Yapıları
-
-| Yapı / Algoritma | Kullanım amacı                                |
-| ---------------- | --------------------------------------------- |
-| 2D Grid          | Labirentin modellenmesi                       |
-| Cell             | Her labirent hücresinin temsil edilmesi       |
-| Dictionary       | N/E/S/W duvarlarının tutulması                |
-| List             | Grid, komşular ve path bilgilerinin tutulması |
-| Set              | Ziyaret edilen koordinatların hızlı kontrolü  |
-| Stack            | DFS ve backtracking                           |
-| Randomized DFS   | Perfect maze oluşturma                        |
-| Random Selection | Farklı maze yapıları üretme                   |
-| Dead-End Removal | Pac-Man tipi alternatif yollar oluşturma      |
-| Queue / deque    | BFS sırasında hücrelerin işlenmesi            |
-| BFS              | Giriş-çıkış arasındaki en kısa yol            |
-| Parent Map       | BFS sonucunda path reconstruction             |
-| Bit Encoding     | Duvar bilgilerinin sayısal gösterimi          |
-| Hexadecimal      | Hücre bilgisinin tek karakterle saklanması    |
+1. `a_maze_ing.py` başlatılır.
+2. `config.txt` okunur.
+3. Config değerleri doğrulanır.
+4. SEED varsa random generator sabitlenir.
+5. `MazeGenerator` oluşturulur.
+6. 42 koordinatları hesaplanır.
+7. ENTRY ve EXIT'in 42 ile çakışması kontrol edilir.
+8. 42 hücreleri visited yapılır.
+9. PERFECT değeri kontrol edilir.
+10. `PERFECT=True` ise perfect maze üretilir.
+11. `PERFECT=False` ise Pac-Man maze oluşturulur.
+12. Pac-Man modunda perfect maze oluşturulur, dead-end'ler azaltılır ve loop eklenir.
+13. `add_42()` çalıştırılır.
+14. 42 hücreleri tamamen kapatılır.
+15. BFS çalıştırılır.
+16. ENTRY → EXIT shortest path bulunur.
+17. Path'in geçerli olduğu doğrulanır.
+18. Cell duvarları hexadecimal forma dönüştürülür.
+19. Grid, ENTRY, EXIT ve shortest path `maze.txt` dosyasına yazılır.
 
 ---
 
-## Seed Kullanımı ve Tekrar Üretilebilir Labirent Üretimi
+## 26. Type Hint ve Statik Kod Yapısı
 
-Labirent oluşturma algoritmasında komşu hücre seçimleri ve Pac-Man modunda kaldırılacak duvarların belirlenmesi sırasında rastgele seçim yapılmaktadır. Bu yapı her çalıştırmada farklı bir labirent oluşturulmasını sağlamaktadır.
-
-Bununla birlikte algoritmanın deterministik olarak tekrar çalıştırılabilmesi için bir **seed (tohum)** mekanizmasının desteklenmesi gerekmektedir.
-
-Seed kullanıldığında aynı:
-
-* labirent genişliği,
-* labirent yüksekliği,
-* başlangıç ve çıkış koordinatları,
-* generation modu,
-* seed
-
-değerleri kullanıldığında aynı rastgele seçim dizisi oluşacağından aynı labirent yeniden üretilebilir.
-
-Mantıksal akış:
-
-```text
-Seed değerini al
-        ↓
-Random generator'ı seed ile başlat
-        ↓
-Maze generation
-        ↓
-random.choice(...)
-        ↓
-Aynı seed → Aynı seçim sırası
-        ↓
-Aynı labirent
-```
-
-Mevcut algoritmada `random.choice()` kullanılmasına rağmen seed kontrolü henüz uygulanmamıştır. Bu nedenle bu bölüm algoritmanın tamamlanması gereken parçalarından biridir.
-
----
-
-## Pac-Man Modunda 3×3 Açık Alan Kontrolü
-
-Pac-Man maze üretiminde ilk olarak perfect maze oluşturulmakta, daha sonra dead-end hücrelerin bazı duvarları kaldırılarak döngüler ve alternatif yollar oluşturulmaktadır.
-
-Ancak duvar kaldırma işlemi kontrolsüz şekilde gerçekleştirildiğinde birbirine bağlı geniş açık alanların ortaya çıkma ihtimali bulunmaktadır.
-
-Bu nedenle her duvar kaldırma işleminden önce yeni geçişin çevrede **3×3 tamamen açık bir alan oluşturup oluşturmadığının kontrol edilmesi** gerekir.
-
-Algoritmanın geliştirilmiş mantığı:
-
-```text
-Dead-end hücreyi bul
-        ↓
-Kırılabilecek duvarları belirle
-        ↓
-Bir aday duvar seç
-        ↓
-Duvar kaldırılırsa çevrede
-3×3 açık alan oluşuyor mu?
-        ↓
-   ┌────┴────┐
-  EVET      HAYIR
-   ↓           ↓
-Duvarı      Duvarı
-koru        kaldır
-               ↓
-        Komşunun karşı
-        duvarını kaldır
-```
-
-Böylece Pac-Man tipi döngüler oluşturulurken koridorların ve açık alanların proje gereksinimlerine uygun kalması sağlanabilir.
-
-Mevcut `_remove_dead_ends()` algoritması dead-end tespiti ve duvar kaldırma işlemini gerçekleştirmektedir; ancak 3×3 açık alan kontrol mekanizması henüz bulunmamaktadır.
-
----
-
-## Type Hint ve Statik Kod Analizi
-
-Algoritma bölümünde Python type hint yapısı büyük ölçüde kullanılmıştır.
+Algoritma kodunda Python type hint yapıları kullanılmıştır.
 
 Örneğin:
 
-```python
-def __init__(self, width: int, height: int):
+`def _get_neighbors(self, cell: Cell) -> List[Tuple[str, Cell]]`
 
-def _get_neighbors(
-    self,
-    cell: Cell
-) -> List[Tuple[str, Cell]]:
+ve:
 
-def solve_maze(
-    self,
-    start: Tuple[int, int],
-    end: Tuple[int, int]
-) -> List[str]:
-```
+`def solve_maze(self, start: Tuple[int, int], end: Tuple[int, int]) -> List[str]`
 
-gibi tanımlamalar sayesinde fonksiyonların hangi veri tiplerini aldığı ve ne döndürdüğü açıkça belirtilmiştir.
+gibi tanımlamalar fonksiyonların hangi tür verileri aldığını ve ne döndürdüğünü açık hale getirir.
 
-Benzer şekilde:
+Projede özellikle:
 
-* `List`
-* `Tuple`
-* `Dict`
-* `Any`
+- `List`
+- `Tuple`
+- `Dict`
+- `Any`
 
-gibi `typing` yapıları kullanılmıştır.
+gibi `typing` yapılarından yararlanılmıştır.
 
-Bu yaklaşım kodun:
+Type hint kullanımı kod okunabilirliğini, IDE desteğini, bakım yapılabilirliğini ve statik hata kontrolünü iyileştirir.
 
-* okunabilirliğini,
-* bakım yapılabilirliğini,
-* hataların erken yakalanmasını,
-* IDE desteğini
-
-artırmaktadır.
-
-Bununla birlikte bütün fonksiyonların tam type annotation'a sahip olması gerekir. Örneğin yardımcı fonksiyonların da:
-
-```python
-def _remove_dead_ends(self) -> None:
-```
-
-şeklinde açık dönüş tipleriyle tanımlanması gerekir.
-
-Algoritma kodunun son aşamasında:
-
-```text
-flake8
-```
-
-ile stil ve PEP 8 kontrollerinin;
-
-```text
-mypy --strict
-```
-
-ile statik tip kontrollerinin yapılması hedeflenmelidir.
-
-Bu nedenle type hint kullanımı algoritmanın yalnızca dokümantasyon özelliği değil, aynı zamanda proje kalite kontrol mekanizmasının bir parçasıdır.
+Kod üzerinde `mypy` ve `flake8` gibi araçlarla tip ve kod standardı kontrolleri gerçekleştirilebilir.
 
 ---
 
-## `mazegen` Paket Yapısı
+## 27. `mazegen` Paket Yapısı
 
-Algoritma kodu yalnızca ana program içerisinde bırakılmamış, yeniden kullanılabilir bir Python paketi olacak şekilde `mazegen` yapısı altında ayrılmıştır.
+Algoritma kodları yalnızca `a_maze_ing.py` içerisinde tutulmamıştır.
 
-Temel yapı:
+Yeniden kullanılabilir bir yapı oluşturmak amacıyla:
 
-```text
-mazegen/
-│
-├── __init__.py
-├── maze_generator.py
-└── maze.py
-```
+mazegen/  
+├── `__init__.py`  
+├── `maze.py`  
+└── `maze_generator.py`
 
-şeklindedir.
+şeklinde ayrılmıştır.
 
-`maze_generator.py` içerisinde maze generation ve çözüm algoritmaları bulunurken `maze.py` içerisinde hücre veri modeli ve maze'in dosyaya aktarılmasıyla ilgili yapı bulunmaktadır.
+`maze_generator.py` içerisinde temel olarak:
 
-`__init__.py` üzerinden:
+- MazeGenerator
+- DFS
+- Pac-Man generation
+- dead-end işlemleri
+- güvenli duvar kontrolü
+- loop oluşturma
+- 42 pattern
+- BFS
 
-```python
-MazeGenerator
-save_maze_to_file
-```
+algoritmaları bulunmaktadır.
 
-dışarı aktarılmaktadır.
+`maze.py` içerisinde ise:
 
-Böylece başka bir Python kodunda algoritmanın:
+- `Cell`
+- hexadecimal dönüşüm
+- maze'in dosyaya kaydedilmesi
 
-```python
-from mazegen import MazeGenerator
-```
+gibi yapılar bulunmaktadır.
 
-benzeri bir yapıyla kullanılabilmesinin temeli oluşturulmuştur.
+`__init__.py` paketin dışarıya sunacağı yapıları tanımlar.
 
-Projede ayrıca `pyproject.toml` bulunmakta ve paket:
+Projede ayrıca `pyproject.toml` üzerinden `mazegen` paket bilgileri tanımlanmıştır.
 
-```text
-name = "mazegen"
-version = "0.1.0"
-```
-
-şeklinde tanımlanmaktadır.
-
-Dolayısıyla yeniden kullanılabilir paket mimarisinin temel yapısı oluşturulmuştur.
-
-Tamamlanması/doğrulanması gereken son aşama ise paketin build edilerek:
-
-```text
-mazegen-....whl
-```
-
-ve/veya
-
-```text
-mazegen-....tar.gz
-```
-
-dağıtım dosyalarının üretilmesi ve temiz bir Python ortamında `pip` ile kurulabildiğinin test edilmesidir.
+Bu yapı algoritma bölümünün ana programdan ayrılmasını ve başka Python kodları tarafından yeniden kullanılabilmesini sağlar.
 
 ---
 
-# Güncellenmiş Algoritma Sorumluluğu Özeti
+## 28. Kullanılan Temel Algoritmalar ve Kavramlar
 
-Algoritma tarafındaki sorumluluğum yalnızca DFS ve BFS algoritmalarını yazmakla sınırlı değildir. Genel olarak aşağıdaki yapıların oluşturulması ve birbirleriyle entegre edilmesi algoritma bölümünün kapsamını oluşturmaktadır:
+DFS (Depth-First Search): Bir yönde mümkün olduğunca derine ilerleyen arama algoritmasıdır. Projede perfect maze üretiminde kullanılmıştır.
 
-* Labirentin `Cell` tabanlı iki boyutlu grid olarak modellenmesi
-* Hücre duvarlarının N/E/S/W mantığıyla yönetilmesi
-* Randomized DFS ve backtracking ile perfect maze oluşturulması
-* Ziyaret edilmemiş komşuların hesaplanması
-* Dead-end noktalarının tespit edilmesi
-* Pac-Man tipi döngülü maze yapısının oluşturulması
-* 3×3 açık alan oluşumunun engellenmesi
-* 42 deseninin koordinatlarının hesaplanması
-* 42 hücrelerinin generation algoritmasından korunması
-* 42 deseninin labirentin gerçek topolojisine eklenmesi
-* BFS ile giriş ve çıkış arasındaki en kısa yolun bulunması
-* Parent-map kullanılarak çözüm yolunun yeniden oluşturulması
-* Duvarların bit değerleri ile kodlanması
-* Bit değerlerinin hexadecimal gösterime dönüştürülmesi
-* Seed desteğiyle deterministik maze generation sağlanması
-* Type hint kullanılarak algoritma kodlarının statik olarak denetlenebilir hale getirilmesi
-* `flake8` ve `mypy --strict` kontrollerine uygun kod yapısının oluşturulması
-* Maze algoritmasının `mazegen` isimli yeniden kullanılabilir Python paketi altında yapılandırılması
-* Paketin `.whl` / `.tar.gz` biçiminde dağıtılabilir hale getirilmesi
+Backtracking: DFS bir çıkmaza ulaştığında stack üzerinden önceki hücrelere geri dönme işlemidir.
 
+Stack: LIFO mantığıyla çalışan veri yapısıdır. Perfect maze üretiminde DFS'in ilerlediği yolu takip etmek için kullanılır.
 
-# 21. Genel Sonuç
+BFS (Breadth-First Search): Başlangıç noktasından katman katman ilerleyen arama algoritmasıdır. Projede ENTRY ile EXIT arasındaki en kısa yolu bulmak için kullanılmıştır.
 
-Algoritma bölümünde temel olarak projenin **labirentin nasıl oluşacağını ve nasıl çözüleceğini belirleyen çekirdek yapısı** geliştirildi.
+Queue: FIFO mantığıyla çalışan veri yapısıdır. BFS içerisinde `deque` ile uygulanmıştır.
 
-Labirent üretiminde Randomized DFS ve backtracking yaklaşımı kullanılarak her çalıştırmada farklı bir perfect maze üretilebilmektedir. Alternatif modda dead-end noktalarının bazıları kaldırılarak döngüler içeren Pac-Man tarzı bir yapı oluşturulmaktadır.
+Dead-End: Yalnızca tek geçişi bulunan çıkmaz hücredir. Dört duvarın üçü kapalıdır.
 
-42 deseni için özel koordinatlar hesaplanarak bu alanların maze generation sürecinden korunması ve daha sonra tamamen kapalı hücreler şeklinde labirente eklenmesi sağlanmıştır.
+Perfect Maze: Erişilebilir iki nokta arasında tek bir yol bulunan ve loop içermeyen maze türüdür.
 
-Çözüm tarafında ise BFS kullanılarak giriş ve çıkış arasındaki en kısa yol hesaplanmakta ve sonuç N, E, S ve W yönlerinden oluşan bir path olarak elde edilmektedir.
+Pac-Man Maze: Daha fazla alternatif rota ve loop içeren maze yapısıdır.
 
-Son olarak hücrelerin duvarları bit tabanlı hexadecimal gösterime dönüştürülerek labirentin kompakt bir dosya formatında saklanabilmesi sağlanmıştır.
+Loop / Cycle: Bir noktadan başlayıp farklı geçişlerden ilerleyerek tekrar aynı bölgeye ulaşılabilen kapalı rota yapısıdır.
 
+Visited: Bir hücrenin algoritma tarafından daha önce işlenip işlenmediğini belirtir.
 
+Parent Map: BFS sırasında bir hücreye hangi hücreden ulaşıldığını saklayan yapıdır.
 
-## `_is_safe_to_break()` – 3×3 Açık Alan Kontrolü
+Path Reconstruction: Parent map kullanılarak EXIT'ten ENTRY'ye geri gidip çözüm yolunun oluşturulmasıdır.
 
-Bu fonksiyon, Pac-Man modunda bir duvar kaldırılmadan önce işlemin güvenli olup olmadığını kontrol etmek için kullanılır.
+Seed: Rastgele seçimlerin tekrar üretilebilir olmasını sağlayan başlangıç değeridir.
 
-Fonksiyon, kaldırılması düşünülen duvarı geçici olarak açar ve çevrede oluşabilecek 3×3 alanları inceler. Eğer duvarın açılması tamamen açık bir 3×3 alan oluşturuyorsa `False`, güvenliyse `True` döndürür. Kontrol tamamlandıktan sonra geçici olarak açılan duvar tekrar eski haline getirilir.
+Bit Encoding: Duvarların `1, 2, 4, 8` gibi bit değerleriyle temsil edilmesidir.
 
-`_remove_dead_ends()` fonksiyonunda kırılabilecek duvarlar önce bu fonksiyonla kontrol edilir ve yalnızca güvenli olan duvarlardan biri rastgele seçilerek açılır.
+Hexadecimal: Bit olarak kodlanan duvar bilgilerinin `0-F` arasında tek karakterle gösterilmesidir.
 
-```text
-Dead-end bul
-    ↓
-Kırılabilecek duvarları belirle
-    ↓
-_is_safe_to_break()
-    ↓
-3×3 açık alan oluşuyor mu?
-   ↙             ↘
- Evet           Hayır
-  ↓               ↓
-Açma          Duvarı aç
-```
+3×3 Open Area Control: Pac-Man modunda duvar açılması sonucunda tamamen açık 3×3 alan oluşmasını engelleyen kontroldür.
 
-Bu sayede Pac-Man tipi labirent oluşturulurken çıkmaz yollar azaltılırken 3×3 tamamen açık alanların oluşması engellenir.
+---
+
+## 29. Algoritma Bölümünde Gerçekleştirilen İşlerin Özeti
+
+Projede algoritma bölümünde gerçekleştirilen temel çalışmalar şunlardır:
+
+- Labirentin iki boyutlu `Cell` grid yapısıyla modellenmesi
+- Hücrelerin N/E/S/W duvar bilgilerinin yönetilmesi
+- 42 pattern koordinatlarının dinamik olarak hesaplanması
+- 42 alanının DFS algoritmasından korunması
+- ENTRY ve EXIT'in 42 deseniyle çakışmasının engellenmesi
+- Randomized DFS ile perfect maze oluşturulması
+- Stack kullanılarak backtracking uygulanması
+- Seed desteğiyle maze üretiminin tekrar üretilebilir hale getirilmesi
+- Dead-end hücrelerin tespit edilmesi
+- Pac-Man modunda güvenli dead-end azaltma işleminin uygulanması
+- `_is_safe_to_break()` ile güvenli duvar açma kontrolünün gerçekleştirilmesi
+- 3×3 tamamen açık alanların engellenmesi
+- Pac-Man modunda ek loop/cycle oluşturulması
+- 42 deseninin hücre duvarları kullanılarak maze topolojisine eklenmesi
+- BFS kullanılarak ENTRY ve EXIT arasındaki en kısa yolun hesaplanması
+- `queue`, `visited` ve `parent_map` yapılarının kullanılması
+- BFS sonucunun N/S/E/W yön dizisine dönüştürülmesi
+- Geçerli çözüm yolu bulunamaması durumunun hata olarak ele alınması
+- Hücre duvarlarının bit değerleriyle kodlanması
+- Bit değerlerinin hexadecimal gösterime dönüştürülmesi
+- Grid, ENTRY, EXIT ve shortest path bilgilerinin çıktı dosyasına yazılması
+- Type hint kullanılarak algoritma kodunun statik analize uygun hale getirilmesi
+- Algoritma kodunun `mazegen` paketi altında modüler hale getirilmesi
+
+---
+
+## 30. Genel Sonuç
+
+A-Maze-Ing projesinin algoritma bölümünde labirentin oluşturulmasından çözümünün bulunmasına kadar uzanan çekirdek sistem geliştirilmiştir.
+
+Labirent, `Cell` nesnelerinden oluşan iki boyutlu bir grid olarak modellenmiştir. Perfect maze üretiminde Randomized DFS ve backtracking kullanılmıştır. Seed desteği sayesinde rastgele üretim gerektiğinde tekrar üretilebilir hale getirilmiştir.
+
+Pac-Man modunda başlangıçta perfect maze oluşturulmakta, ardından güvenli dead-end azaltma ve loop oluşturma işlemleri uygulanmaktadır. Duvar açma işlemleri `_is_safe_to_break()` kontrolünden geçirilerek 42 deseninin ve maze yapısının korunması, ayrıca 3×3 tamamen açık alanların oluşmaması amaçlanmaktadır.
+
+42 deseni önce koordinat olarak hesaplanmakta, generation öncesinde bu hücreler `visited` olarak işaretlenerek DFS'ten korunmakta ve maze generation tamamlandıktan sonra hücreler tamamen kapatılarak desen fiziksel olarak labirentin topolojisine eklenmektedir. ENTRY ve EXIT koordinatlarının bu kapalı hücrelerle çakışması ayrıca kontrol edilmektedir.
+
+Maze'in çözümünde BFS kullanılarak ENTRY ile EXIT arasındaki en kısa yol hesaplanmaktadır. `queue`, `visited` ve `parent_map` veri yapılarıyla gerçekleştirilen BFS sonucunda yol N, S, E ve W yönlerinden oluşan bir dizi olarak oluşturulmaktadır. Geçerli bir çözüm yolu bulunamaması durumunda programın sessizce hatalı çıktı üretmesini engelleyen ek hata kontrolü bulunmaktadır.
+
+Son olarak hücre duvarları `N=1`, `E=2`, `S=4`, `W=8` bit değerleri kullanılarak kodlanmakta ve hexadecimal formata çevrilmektedir. Maze grid'i, ENTRY, EXIT ve BFS tarafından bulunan shortest path çıktı dosyasına aktarılmaktadır.
+
+Bu yapı sonucunda algoritma bölümü; maze generation, randomization, reproducibility, graph traversal, path finding, dead-end yönetimi, cycle oluşturma, pattern koruması, validation, error handling ve hexadecimal encoding işlemlerini birbirine bağlı şekilde gerçekleştiren modüler bir sistem haline getirilmiştir.
