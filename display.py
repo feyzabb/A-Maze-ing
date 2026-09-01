@@ -1,4 +1,6 @@
 from typing import List
+import os
+import sys
 
 
 class MazeDisplay():
@@ -109,7 +111,7 @@ class MazeDisplay():
                       "value between 1 and 4.")
 
     def draw(self, show_path: bool, current_color: str) -> None:
-        os.system ('clear' if os.name == 'posix' else 'cls')
+        os.system('clear' if os.name == 'posix' else 'cls')
 
         path_coords = set()
         if show_path and self.entry and self.path:
@@ -125,4 +127,23 @@ class MazeDisplay():
                 elif direction == 'W':
                     curr_x -= 1
                 path_coords.add((curr_x, curr_y))
-            
+
+        for y, row in enumerate(self.grid):
+            line_str = ""
+            for x, cell_val in enumerate(row):
+                if (x, y) == self.entry:
+                    line_str += " E "
+                elif (x, y) == self.exit:
+                    line_str += " X "
+                elif show_path and (x, y) in path_coords:
+                    line_str += " . "
+                elif cell_val == 15:
+                    line_str += f"{current_color}###{self.COLOR_RESET}"
+                else:
+                    walls = self.get_walls(cell_val)
+                    if walls['E'] and walls['S']:
+                        line_str += f"{current_color}+--{self.COLOR_RESET}"
+                    else:
+                        line_str += f"{current_color}   {self.COLOR_RESET}"
+
+            print(line_str)
