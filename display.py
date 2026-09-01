@@ -81,3 +81,29 @@ class MazeDisplay():
             'S': bool(cell_value & 4),
             'W': bool(cell_value & 8)
         }
+
+    def start_interactive_mode(self):
+        show_path = False
+        current_color = self.COLOR_GREEN
+
+        while True:
+            print("\n=== A-Maze_ing ===")
+            print("1. Re-generate a new maze")
+            print("2. Show/Hide the shortest path")
+            print("3. Rotate the wall colours")
+            print("4. Quit")
+
+            choice = input("Choice?(1-4):")
+
+            if choice == '1':
+                pass
+            elif choice == '2':
+                show_path = not show_path
+            elif choice == '3':
+                pass
+            elif choice == '4':
+                print("Logging out...")
+                break
+            else:
+                print("Invalid selection; please enter a "
+                      "value between 1 and 4.")
