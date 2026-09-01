@@ -86,9 +86,13 @@ class MazeDisplay():
 
     def start_interactive_mode(self):
         show_path = False
-        current_color = self.COLOR_GREEN
+        colors = [self.COLOR_GREEN, self.COLOR_CYAN, self.COLOR_RED]
+        color_index = 0
 
         while True:
+            current_color = colors[color_index]
+            self.draw(show_path, current_color)
+
             print("\n=== A-Maze_ing ===")
             print("1. Re-generate a new maze")
             print("2. Show/Hide the shortest path")
@@ -98,13 +102,15 @@ class MazeDisplay():
             choice = input("Choice?(1-4):")
 
             if choice == '1':
-                pass
+                print("A new maze is being generated...")
+                os.system(f"{sys.executable} a_maze_ing.py config.txt")
+                self.load_maze()
             elif choice == '2':
                 show_path = not show_path
             elif choice == '3':
-                pass
+                color_index = (color_index + 1) % len(colors)
             elif choice == '4':
-                print("Logging out...")
+                print("Terminating...")
                 break
             else:
                 print("Invalid selection; please enter a "

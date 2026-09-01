@@ -3,6 +3,7 @@ import random
 from typing import Dict, Any
 from mazegen.maze_generator import MazeGenerator
 from mazegen.maze import save_maze_to_file
+from display import MazeDisplay
 
 
 def read_config(filepath: str) -> Dict[str, Any]:
@@ -145,6 +146,8 @@ def main() -> None:
             exit=config['EXIT'],
             path=shortest_path
         )
+        display = MazeDisplay(config['OUTPUT_FILE'])
+        display.start_interactive_mode()
 
     except ValueError as e:
         print(e)
