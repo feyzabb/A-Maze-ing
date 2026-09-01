@@ -107,3 +107,22 @@ class MazeDisplay():
             else:
                 print("Invalid selection; please enter a "
                       "value between 1 and 4.")
+
+    def draw(self, show_path: bool, current_color: str) -> None:
+        os.system ('clear' if os.name == 'posix' else 'cls')
+
+        path_coords = set()
+        if show_path and self.entry and self.path:
+            curr_x, curr_y = self.entry
+            path_coords.add((curr_x, curr_y))
+            for direction in self.path:
+                if direction == 'N':
+                    curr_y -= 1
+                elif direction == 'S':
+                    curr_y += 1
+                elif direction == 'E':
+                    curr_x += 1
+                elif direction == 'W':
+                    curr_x -= 1
+                path_coords.add((curr_x, curr_y))
+            
