@@ -115,41 +115,61 @@ class MazeDisplay():
             else:
                 print("Invalid selection; please enter a "
                       "value between 1 and 4.")
+                input("Press Enter to continue...")
 
     def draw(self, show_path: bool, current_color: str) -> None:
         os.system('clear' if os.name == 'posix' else 'cls')
 
-        path_coords = set()
-        if show_path and self.entry and self.path:
-            curr_x, curr_y = self.entry
-            path_coords.add((curr_x, curr_y))
-            for direction in self.path:
-                if direction == 'N':
-                    curr_y -= 1
-                elif direction == 'S':
-                    curr_y += 1
-                elif direction == 'E':
-                    curr_x += 1
-                elif direction == 'W':
-                    curr_x -= 1
-                path_coords.add((curr_x, curr_y))
+        path_coords = self._get_path_coords(show_path)
+        self._color = current_color
+        self._path_coords = path_coords
 
+        print(self._border_line(0, 'N'))
         for y, row in enumerate(self.grid):
-            line_str = ""
-            for x, cell_val in enumerate(row):
-                if (x, y) == self.entry:
-                    line_str += " E "
-                elif (x, y) == self.exit:
-                    line_str += " X "
-                elif show_path and (x, y) in path_coords:
-                    line_str += " . "
-                elif cell_val == 15:
-                    line_str += f"{current_color}###{self.COLOR_RESET}"
-                else:
-                    walls = self.get_walls(cell_val)
-                    if walls['E'] and walls['S']:
-                        line_str += f"{current_color}+--{self.COLOR_RESET}"
-                    else:
-                        line_str += f"{current_color}   {self.COLOR_RESET}"
+            print(self._room_line(y, row))
+            print(self._border_line(y, 'S'))
 
-            print(line_str)
+    def _get_path_coords(self, show_path: bool) -> dict[tuple[int, int], str]:
+        path_coords: dict[tuple[int, int], str] = {}
+        if not (show_path and self.entry and self.path):
+            return path_coords
+
+        moves = {'N': (0, -1), 'S': (0, 1), 'E': (1, 0), 'W': (-1, 0)}
+        curr_x, curr_y = self.entry
+
+        for direction in self.path:
+            path_coords[(curr_x, curr_y)] = direction
+            dx, dy = moves[direction]
+            curr_x, curr_y = curr_x + dx, curr_y + dy
+
+        return path_coords
+
+    def _border_line(self, y: int, key: str) -> str:
+        line = "+"
+        for cell_val in self.grid[y]:
+            walls = self.get_walls(cell_val)
+            segment = f"{self._color}---{self.COLOR_RESET}" if walls[key] else "   "
+            line += segment + "+"
+        return line
+
+    def _room_line(self, y: int, row: list) -> str:
+        line = ""
+        for x, cell_val in enumerate(row):
+            walls = self.get_walls(cell_val)
+            line += f"{self._color}|{self.COLOR_RESET}" if walls['W'] else " "
+            line += self._room_symbol(x, y, cell_val)
+
+        last_walls = self.get_walls(row[-1])
+        line += f"{self._color}|{self.COLOR_RESET}" if last_walls['E'] else " "
+        return line
+
+    def _room_symbol(self, x: int, y: int, cell_val: int) -> str:
+        if (x, y) == self.entry:
+            return " E "
+        if (x, y) == self.exit:
+            return " X "
+        if cell_val == 15:
+            return f"{self._color}███{self.COLOR_RESET}"
+        if (x, y) in self._path_coords:
+            return " . "
+        return "   "
