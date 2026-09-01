@@ -1,66 +1,16 @@
-"""[ Başlangıç / Girdi ]
-       │
-       ▼
-[ Dosya Okuma ve Ayrıştırma (Parsing) ]
-  ├── Labirent Matrisi (Grid / Hex Değerleri)
-  ├── Giriş (Entry) ve Çıkış (Exit) Koordinatları[cite: 1]
-  └── En Kısa Yol (N, E, S, W Adımları)[cite: 1]
-       │
-       ▼
-[ Çekirdek Sınıf / Yapı (MazeDisplay) ]
-  ├── Terminal Kurulumu (Alternatif Ekran & İmleç Gizleme)
-  └── "42" Desen Tespiti (Tam Kapalı Hücreler)[cite: 1]
-       │
-       ▼
-[ Görselleştirme Motoru (Rendering Engine) ]
-  ├── Duvar Bitlerinin Çözümlenmesi (Kuzey, Doğu, Güney, Batı)[cite: 1]
-  ├── Siberpunk Blok Karakterleri ve Renk Paleti Uygulaması[cite: 2]
-  └── En Kısa Yolun Harita Üzerine İşlenmesi[cite: 2]
-       │
-       ▼
-[ Etkileşim ve Olay Döngüsü (Event Loop) ]
-  ├── R Tuşu: Yeniden Üret (Regenerate)[cite: 2]
-  ├── P Tuşu: Yolu Göster / Gizle (Path Toggle)[cite: 2]
-  ├── C Tuşu: Renk Değiştir (Color Rotation)[cite: 2]
-  └── Q Tuşu: Güvenli Çıkış (Quit)"""
-
-"""MazeDisplay
-│
-├── __init__()
-│
-├── load_file()
-│
-├── parse_grid()
-│
-├── parse_footer()
-│
-├── analyze_cell()
-│
-├── find_42_pattern()
-│
-└── draw()"""
-
-"""Dosyayı oku
-        │
-        ▼
-grid_lines oluştu
-footer_lines oluştu
-        │
-        ▼
-parse_grid(...)
-parse_coordinates(...)
-parse_path(...)
-        │
-        ▼
-self.grid
-self.entry
-self.exit
-self.path dolduruldu"""
-
 from typing import List
 
 
 class MazeDisplay():
+    WALL_CHAR = "██"
+    EMPTY_CHAR = " "
+    PATH_CHAR = "••"
+
+    COLOR_GREEN = "\033[92m"
+    COLOR_RED = "\033[91m"
+    COLOR_CYAN = "\033[96m"
+    COLOR_RESET = "\033[0m"
+
     def __init__(self, filepath: str):
         self.filepath = filepath
         self.grid: List[List[int]] = []
@@ -123,3 +73,11 @@ class MazeDisplay():
             if direction not in "EWSN":
                 raise ValueError(f"Invalid direction: '{direction}'")
             self.path.append(direction)
+
+    def get_walls(self, cell_value: int) -> dict[str, bool]:
+        return {
+            'N': bool(cell_value & 1),
+            'E': bool(cell_value & 2),
+            'S': bool(cell_value & 4),
+            'W': bool(cell_value & 8)
+        }
