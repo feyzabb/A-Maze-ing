@@ -1,9 +1,26 @@
+"""Interactive terminal-based ASCII renderer for A-Maze-ing mazes."""
+
 from typing import List
 import os
 import sys
 
 
 class MazeDisplay():
+    """Loads a maze output file and renders it as coloured ASCII art.
+
+    Provides an interactive terminal menu to regenerate the maze,
+    toggle the shortest-path overlay, and cycle through wall colours.
+
+    Attributes:
+        filepath: Path to the maze output file being displayed.
+        grid: 2D list of integer wall-bitmask values, one per cell.
+        path: List of direction letters describing the shortest path.
+        entry: (x, y) coordinates of the maze entry, or None.
+        exit: (x, y) coordinates of the maze exit, or None.
+        show_path: Whether the shortest-path overlay is currently shown.
+        color_index: Index of the currently selected wall colour.
+    """
+
     WALL_CHAR = "██"
     EMPTY_CHAR = " "
     PATH_CHAR = "  "
@@ -15,6 +32,11 @@ class MazeDisplay():
     PATH_COLOR = "\033[48;5;015m"
 
     def __init__(self, filepath: str):
+        """Load and parse the maze file at the given path.
+
+        Args:
+            filepath: Path to the maze output file to load and display.
+        """
         self.filepath = filepath
         self.grid: List[List[int]] = []
         self.path: List[str] = []
@@ -25,6 +47,13 @@ class MazeDisplay():
         self.load_maze()
 
     def load_maze(self) -> None:
+        """Read the maze file and populate grid, entry, exit, and path.
+
+        The file is split into a grid section (hexadecimal rows) and a
+        footer section (entry, exit, and path), separated by a blank
+        line. Exits the program with an error message if the file is
+        missing or cannot be parsed.
+        """
         grid_lines: List[str] = []
         footer_lines: List[str] = []
         reading_grid = True
@@ -56,6 +85,12 @@ class MazeDisplay():
             sys.exit(1)
 
     def parse_grid(self, grid_lines: List[str]) -> None:
+        """Convert the hexadecimal grid lines into integer wall values.
+
+        Args:
+            grid_lines: Raw text lines from the file's grid section, one
+                hexadecimal digit per cell.
+        """
         self.grid = []
 
         for line in grid_lines:
@@ -65,6 +100,13 @@ class MazeDisplay():
             self.grid.append(row)
 
     def parse_coordinates(self, footer_lines: List[str]) -> None:
+        """Extract entry and exit coordinates from the file footer.
+
+        Args:
+            footer_lines: Lines following the blank line separator; the
+                first two lines are expected to hold the entry and exit
+                coordinates as 'x,y'.
+        """
         entry_parts = footer_lines[0].split(',')
         self.entry = (
             int(entry_parts[0]),
@@ -78,6 +120,17 @@ class MazeDisplay():
         )
 
     def parse_paths(self, footer_lines: List[str]) -> None:
+        """Extract the shortest-path directions from the file footer.
+
+        Args:
+            footer_lines: Lines following the blank line separator; the
+                third line is expected to hold the path as a string of
+                'N', 'E', 'S', 'W' characters.
+
+        Raises:
+            ValueError: If the path string contains a character other
+                than 'N', 'E', 'S', or 'W'.
+        """
         self.path = []
         path = footer_lines[2]
 
@@ -87,6 +140,15 @@ class MazeDisplay():
             self.path.append(direction)
 
     def get_walls(self, cell_value: int) -> dict[str, bool]:
+        """Decode a cell's hexadecimal wall bitmask into a dict of walls.
+
+        Args:
+            cell_value: Integer wall bitmask (N=1, E=2, S=4, W=8).
+
+        Returns:
+            A dictionary mapping each cardinal direction to whether that
+            wall is closed.
+        """
         return {
             'N': bool(cell_value & 1),
             'E': bool(cell_value & 2),
@@ -95,6 +157,12 @@ class MazeDisplay():
         }
 
     def start_interactive_mode(self) -> None:
+        """Run the interactive terminal menu loop.
+
+        Repeatedly draws the maze and prompts the user to regenerate the
+        maze, toggle the shortest-path overlay, rotate wall colours, or
+        quit. Runs until the user chooses to quit.
+        """
         show_path = False
         colors = [self.COLOR_GREEN, self.COLOR_CYAN, self.COLOR_RED]
         color_index = 0
@@ -128,6 +196,13 @@ class MazeDisplay():
                 input("Press Enter to continue...")
 
     def draw(self, show_path: bool, current_color: str) -> None:
+        """Clear the terminal and render the full maze once.
+
+        Args:
+            show_path: Whether to highlight the shortest path.
+            current_color: ANSI background colour escape code to use
+                for the maze walls.
+        """
         os.system('clear' if os.name == 'posix' else 'cls')
 
         path_coords = self._get_path_coords(show_path)
@@ -140,6 +215,18 @@ class MazeDisplay():
             print(self._border_line(y, 'S'))
 
     def _get_path_coords(self, show_path: bool) -> dict[tuple[int, int], str]:
+        """Compute, for each cell on the shortest path, its exit direction.
+
+        Args:
+            show_path: Whether the path overlay is enabled. If False
+                (or if there is no entry/path data), an empty mapping is
+                returned.
+
+        Returns:
+            A dictionary mapping each (x, y) cell on the path to the
+            direction letter used to leave it (empty string for the
+            final cell).
+        """
         path_coords: dict[tuple[int, int], str] = {}
         if not (show_path and self.entry and self.path):
             return path_coords
@@ -155,6 +242,17 @@ class MazeDisplay():
         return path_coords
 
     def _border_line(self, y: int, key: str) -> str:
+        """Render one horizontal border line (north or south) of a row.
+
+        Args:
+            y: Row index whose border is being rendered.
+            key: Which side of the row this border represents, 'N' or
+                'S'.
+
+        Returns:
+            The rendered border line as a string, including ANSI colour
+            codes and any highlighted path segments.
+        """
         line = f"{self._color}  {self.COLOR_RESET}"
         for x, cell_val in enumerate(self.grid[y]):
             walls = self.get_walls(cell_val)
@@ -184,6 +282,16 @@ class MazeDisplay():
         return line
 
     def _room_line(self, y: int, row: list[int]) -> str:
+        """Render one row of maze cells, including side walls and symbols.
+
+        Args:
+            y: Row index being rendered.
+            row: List of wall bitmask values for the cells in this row.
+
+        Returns:
+            The rendered row as a string, including ANSI colour codes,
+            highlighted path segments, and entry/exit markers.
+        """
         line = ""
 
         for x, cell_val in enumerate(row):
@@ -223,6 +331,19 @@ class MazeDisplay():
         return line
 
     def _room_symbol(self, x: int, y: int, cell_val: int) -> str:
+        """Pick the symbol to render for a single cell.
+
+        Args:
+            x: Column index of the cell.
+            y: Row index of the cell.
+            cell_val: Wall bitmask value of the cell.
+
+        Returns:
+            'E ' for the entry cell, ' X' for the exit cell, a solid
+            block for a fully closed ('42' pattern) cell, a highlighted
+            path marker if the cell is on the shown path, or two blank
+            spaces otherwise.
+        """
         if (x, y) == self.entry:
             return "E "
         if (x, y) == self.exit:

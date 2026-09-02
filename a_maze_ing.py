@@ -1,3 +1,10 @@
+"""Command-line entry point for the A-Maze-ing project.
+
+Reads a KEY=VALUE configuration file, generates a maze using the
+`mazegen` package, writes it to disk, and launches the interactive
+terminal display.
+"""
+
 import sys
 import random
 from typing import Dict, Any
@@ -7,6 +14,19 @@ from display import MazeDisplay
 
 
 def read_config(filepath: str) -> Dict[str, Any]:
+    """Parse a KEY=VALUE configuration file into a dictionary.
+
+    Blank lines and lines starting with '#' are ignored. Lines without
+    an '=' are reported to stdout and skipped rather than raising an
+    error.
+
+    Args:
+        filepath: Path to the configuration file to read.
+
+    Returns:
+        A dictionary mapping each key to its raw string value. Returns
+        an empty dictionary if the file cannot be found.
+    """
     config_data: Dict[str, Any] = {}
 
     try:
@@ -30,6 +50,27 @@ def read_config(filepath: str) -> Dict[str, Any]:
 
 
 def validate_config(raw_config: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate and type-convert a raw configuration dictionary.
+
+    Checks that all mandatory keys are present, converts values to
+    their expected types, and enforces the project's maze constraints
+    (positive dimensions, entry/exit within bounds and distinct from
+    each other).
+
+    Args:
+        raw_config: Dictionary of raw string values as returned by
+            `read_config`.
+
+    Returns:
+        A dictionary with validated and converted values: WIDTH and
+        HEIGHT as ints, ENTRY and EXIT as (x, y) int tuples, PERFECT as
+        a bool, OUTPUT_FILE as a str, and SEED as an int or None.
+
+    Raises:
+        ValueError: If a mandatory key is missing, a value has the
+            wrong type or format, or a maze constraint (positive
+            dimensions, in-bounds and distinct entry/exit) is violated.
+    """
     valid_config: Dict[str, Any] = {}
     required_keys = ['WIDTH', 'HEIGHT', 'ENTRY', 'EXIT', 'OUTPUT_FILE',
                      'PERFECT']
@@ -89,6 +130,15 @@ def validate_config(raw_config: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def main() -> None:
+    """Parse arguments, generate a maze, save it, and launch the display.
+
+    Expects exactly one command-line argument: the path to a
+    configuration file. Reads and validates the configuration, generates
+    a perfect or Pac-Man style maze accordingly, solves it, writes the
+    result to the configured output file, and starts the interactive
+    terminal display. Any expected error is caught, printed, and causes
+    the program to exit with status 1 instead of crashing.
+    """
     if len(sys.argv) != 2:
         print("Error: The usage should be 'python3 a_maze_ing.py "
               "<config.txt>'.")

@@ -1,3 +1,7 @@
+"""Maze generation logic: perfect mazes, Pac-Man style boards, and the
+embedded '42' pattern.
+"""
+
 import random
 from typing import List, Tuple, Dict
 from collections import deque
@@ -6,7 +10,27 @@ import sys
 
 
 class MazeGenerator:
+    """Generates and solves grid-based mazes.
+
+    Supports two generation modes: a "perfect" maze with exactly one
+    path between any two cells (a spanning tree, built via an iterative
+    DFS), and a "Pac-Man" style board with loops and open corners/centre.
+    A stylised "42" pattern is carved into the middle of the grid and
+    kept fully walled off and disconnected from the rest of the maze.
+
+    Attributes:
+        width: Number of columns in the maze grid.
+        height: Number of rows in the maze grid.
+        grid: 2D list of Cell objects representing the maze.
+    """
+
     def __init__(self, width: int, height: int):
+        """Initialize the grid and pre-compute the '42' pattern cells.
+
+        Args:
+            width: Number of columns the maze should have.
+            height: Number of rows the maze should have.
+        """
         self.width = width
         self.height = height
         self.grid = [
@@ -18,6 +42,16 @@ class MazeGenerator:
         )
 
     def _compute_42_pattern_cells(self) -> List[Tuple[int, int]]:
+        """Compute the grid coordinates that form the '42' pattern.
+
+        The pattern is centred within the grid. If the grid is smaller
+        than the pattern's bounding box, the pattern is omitted and a
+        warning is printed to stderr.
+
+        Returns:
+            A list of (x, y) coordinates belonging to the '42' pattern,
+            or an empty list if the grid is too small to fit it.
+        """
         pattern_width = 8
         pattern_height = 5
 
@@ -46,9 +80,24 @@ class MazeGenerator:
         return [(start_x + dx, start_y + dy) for dx, dy in pattern_offsets]
 
     def is_pattern_cell(self, x: int, y: int) -> bool:
+        """Check whether a coordinate belongs to the '42' pattern.
+
+        Args:
+            x: Column index to check.
+            y: Row index to check.
+
+        Returns:
+            True if (x, y) is part of the '42' pattern, False otherwise.
+        """
         return (x, y) in self._pattern_cells
 
     def mark_42_pattern_as_visited(self) -> None:
+        """Mark all '42' pattern cells as visited.
+
+        Must be called before maze generation so that the DFS never
+        carves into the pattern, keeping it isolated from the rest of
+        the maze.
+        """
         if not self._pattern_cells:
             return
 
@@ -59,6 +108,15 @@ class MazeGenerator:
         self,
         cell: Cell
     ) -> List[Tuple[str, Cell]]:
+        """List the unvisited neighbours of a cell.
+
+        Args:
+            cell: The cell whose neighbours should be examined.
+
+        Returns:
+            A list of (direction, neighbour_cell) pairs for each
+            adjacent, in-bounds, not-yet-visited cell.
+        """
         neighbors = []
         x, y = cell.x, cell.y
 
@@ -77,6 +135,16 @@ class MazeGenerator:
         return neighbors
 
     def generate_perfect_maze(self) -> None:
+        """Carve a perfect maze using an iterative depth-first search.
+
+        Starting from (0, 0), repeatedly moves to a random unvisited
+        neighbour (removing the wall between them) and pushes it onto a
+        stack, backtracking by popping the stack whenever a cell has no
+        unvisited neighbours left. The result is a spanning tree: exactly
+        one path exists between any two cells. Cells belonging to the
+        '42' pattern are skipped if already marked visited via
+        `mark_42_pattern_as_visited`.
+        """
         start_cell = self.grid[0][0]
         start_cell.visited = True
 
@@ -104,11 +172,33 @@ class MazeGenerator:
                 stack.pop()
 
     def generate_pacman_maze(self) -> None:
+        """Turn a perfect maze into a playable Pac-Man style board.
+
+        Removes dead-ends, adds independent loops, and opens the four
+        corners and the centre cell so the board is fully connected and
+        offers a chased player multiple escape routes.
+        """
         self._remove_dead_ends()
         self._add_loops(2)
         self._open_pacman_special_cells()
 
     def _is_safe_to_break(self, x: int, y: int, direction: str) -> bool:
+        """Check whether removing a wall would violate maze constraints.
+
+        Temporarily removes the wall between (x, y) and its neighbour in
+        `direction`, then checks that the neighbour is in-bounds, is not
+        part of the '42' pattern, and that no 3x3 fully-open area would
+        result. The wall is always restored before returning.
+
+        Args:
+            x: Column index of the cell whose wall would be removed.
+            y: Row index of the cell whose wall would be removed.
+            direction: Cardinal direction ('N', 'S', 'E', 'W') of the
+                wall to test.
+
+        Returns:
+            True if removing the wall is safe, False otherwise.
+        """
         dx, dy = 0, 0
         if direction == "N":
             dy = -1
@@ -167,6 +257,14 @@ class MazeGenerator:
         return is_safe
 
     def _remove_dead_ends(self) -> None:
+        """Repeatedly break a wall on every dead-end cell until none remain.
+
+        A dead-end is a non-pattern cell with exactly three closed walls
+        (a single opening). For each dead-end, one of its breakable walls
+        is removed at random, provided doing so is safe (see
+        `_is_safe_to_break`). The process repeats until a full pass makes
+        no further changes.
+        """
         opposite_walls = {
                     "N": "S",
                     "S": "N",
@@ -240,6 +338,18 @@ class MazeGenerator:
                 break
 
     def _add_loops(self, minimum_loops: int = 2) -> None:
+        """Add independent loops to the maze by breaking extra walls.
+
+        Collects every wall whose removal would be safe (see
+        `_is_safe_to_break`), shuffles the candidates, and breaks the
+        first `minimum_loops` of them that are still valid at the time
+        they are processed.
+
+        Args:
+            minimum_loops: The number of loops to attempt to add.
+                Defaults to 2, matching the project's requirement of at
+                least two independent routes.
+        """
         pattern_cells = set(self._pattern_cells)
 
         directions = [
@@ -296,6 +406,16 @@ class MazeGenerator:
             loops_added += 1
 
     def _close_cell_completely(self, x: int, y: int) -> None:
+        """Seal a cell off from all of its neighbours.
+
+        Sets all four walls of the target cell to closed, and updates
+        each existing neighbour so the shared wall is closed on both
+        sides.
+
+        Args:
+            x: Column index of the cell to seal.
+            y: Row index of the cell to seal.
+        """
         cell = self.grid[y][x]
         cell.walls["N"] = True
         cell.walls["S"] = True
@@ -312,6 +432,12 @@ class MazeGenerator:
             self.grid[y][x+1].walls["W"] = True
 
     def add_42(self) -> None:
+        """Fully wall off every cell belonging to the '42' pattern.
+
+        Ensures the pattern is rendered as a visible block of closed
+        cells, isolated from the surrounding maze, as required by the
+        project specification.
+        """
         if not self._pattern_cells:
             return
 
@@ -320,6 +446,17 @@ class MazeGenerator:
 
     def solve_maze(self, start: Tuple[int, int],
                    end: Tuple[int, int]) -> List[str]:
+        """Find the shortest path between two cells via breadth-first search.
+
+        Args:
+            start: (x, y) coordinates of the starting cell.
+            end: (x, y) coordinates of the target cell.
+
+        Returns:
+            A list of cardinal direction letters ('N', 'E', 'S', 'W')
+            describing the shortest path from `start` to `end`, in
+            order. Returns an empty list if no path exists.
+        """
         start_x, start_y = start
         exit_x, exit_y = end
 
@@ -369,6 +506,13 @@ class MazeGenerator:
         return path
 
     def _open_pacman_special_cells(self) -> None:
+        """Ensure the four corners and the centre cell are open.
+
+        For each special cell (the four corners and the grid centre,
+        skipping any that fall inside the '42' pattern), walls are
+        broken one at a time until fewer than three remain closed, so
+        each of these cells ends up with at least two openings.
+        """
         center_x = self.width // 2
         center_y = self.height // 2
 
