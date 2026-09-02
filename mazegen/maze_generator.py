@@ -2,6 +2,7 @@ import random
 from typing import List, Tuple, Dict
 from collections import deque
 from .maze import Cell
+import sys
 
 
 class MazeGenerator:
@@ -21,6 +22,8 @@ class MazeGenerator:
         pattern_height = 5
 
         if self.width < pattern_width or self.height < pattern_height:
+            print("Warning: Maze size is too small to fit the '42' pattern.",
+                  file=sys.stderr)
             return []
 
         start_x = (self.width - pattern_width) // 2

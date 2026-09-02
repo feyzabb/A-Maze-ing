@@ -4,14 +4,15 @@ import sys
 
 
 class MazeDisplay():
-    WALL_CHAR = "███"
+    WALL_CHAR = "██"
     EMPTY_CHAR = " "
-    PATH_CHAR = "••"
+    PATH_CHAR = "  "
 
-    COLOR_GREEN = "\033[92m"
-    COLOR_RED = "\033[91m"
-    COLOR_CYAN = "\033[96m"
+    COLOR_GREEN = "\033[48;5;52m"
+    COLOR_RED = "\033[48;5;91m"
+    COLOR_CYAN = "\033[48;5;111m"
     COLOR_RESET = "\033[0m"
+    PATH_COLOR = "\033[48;5;015m"
 
     def __init__(self, filepath: str):
         self.filepath = filepath
@@ -86,7 +87,7 @@ class MazeDisplay():
             'W': bool(cell_value & 8)
         }
 
-    def start_interactive_mode(self):
+    def start_interactive_mode(self) -> None:
         show_path = False
         colors = [self.COLOR_GREEN, self.COLOR_CYAN, self.COLOR_RED]
         color_index = 0
@@ -143,40 +144,84 @@ class MazeDisplay():
             path_coords[(curr_x, curr_y)] = direction
             dx, dy = moves[direction]
             curr_x, curr_y = curr_x + dx, curr_y + dy
-
+        path_coords[(curr_x, curr_y)] = ""
         return path_coords
 
     def _border_line(self, y: int, key: str) -> str:
-        line = "+"
-        for cell_val in self.grid[y]:
+        line = f"{self._color}  {self.COLOR_RESET}"
+        for x, cell_val in enumerate(self.grid[y]):
             walls = self.get_walls(cell_val)
-            segment = (
-                 f"{self._color}---{self.COLOR_RESET}"
-                 if walls[key]
-                 else "   "
+            connected_down = (
+                key == 'S'
+                and y < len(self.grid) - 1
+                and (x, y) in self._path_coords
+                and (x, y + 1) in self._path_coords
+                and (
+                    self._path_coords[(x, y)] == 'S'
+                    or self._path_coords[(x, y + 1)] == 'N'
+                )
             )
-            line += segment + "+"
+            if connected_down:
+                segment = (
+                    f"{self.PATH_COLOR}"
+                    f"  "
+                    f"{self.COLOR_RESET}"
+                )
+            else:
+                segment = (
+                    f"{self._color}  {self.COLOR_RESET}"
+                    if walls[key]
+                    else "  "
+                )
+            line += segment + f"{self._color}  {self.COLOR_RESET}"
         return line
 
-    def _room_line(self, y: int, row: list) -> str:
+    def _room_line(self, y: int, row: list[int]) -> str:
         line = ""
+
         for x, cell_val in enumerate(row):
             walls = self.get_walls(cell_val)
-            line += f"{self._color}|{self.COLOR_RESET}" if walls['W'] else " "
+
+            connected_left = (
+                x > 0
+                and (x, y) in self._path_coords
+                and (x - 1, y) in self._path_coords
+                and (
+                    self._path_coords[(x - 1, y)] == 'E'
+                    or self._path_coords[(x, y)] == 'W'
+                )
+            )
+
+            if connected_left:
+                line += (
+                    f"{self.PATH_COLOR}  {self.COLOR_RESET}"
+                )
+            else:
+                line += (
+                    f"{self._color}  {self.COLOR_RESET}"
+                    if walls['W']
+                    else "  "
+                )
+
             line += self._room_symbol(x, y, cell_val)
 
         last_walls = self.get_walls(row[-1])
-        line += f"{self._color}|{self.COLOR_RESET}" if last_walls['E'] else " "
+
+        line += (
+            f"{self._color}  {self.COLOR_RESET}"
+            if last_walls['E']
+            else "  "
+        )
+
         return line
 
     def _room_symbol(self, x: int, y: int, cell_val: int) -> str:
         if (x, y) == self.entry:
-            return " E "
+            return "E "
         if (x, y) == self.exit:
-            return " X "
+            return " X"
         if cell_val == 15:
             return f"{self._color}{self.WALL_CHAR}{self.COLOR_RESET}"
         if (x, y) in self._path_coords:
-            return f" {self.PATH_CHAR[0]} "
-        return "   "
-
+            return f"{self.PATH_COLOR}{self.PATH_CHAR}{self.COLOR_RESET}"
+        return "  "

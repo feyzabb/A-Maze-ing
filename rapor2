@@ -1,6 +1,0 @@
-Algoritma tarafında konuştuğumuz ana maddeler tamamlandı:
-
-BFS ana akışa bağlandı → dummy_path kaldırıldı, gerçek shortest_path yazılıyor.
-Seed desteği eklendi → aynı seed ile aynı labirent tekrar üretilebiliyor.
-Pac-Man 3×3 koruması eklendi → _is_safe_to_break() ile duvar kırmadan önce kontrol yapılıyor.
-Type hint / mypy düzenlemeleri yapıldı.

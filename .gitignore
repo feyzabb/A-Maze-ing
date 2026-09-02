@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.mypy_cache/
+.env
+venv/
+env/
+maze.txt
+build/
+dist/
+*.egg-info/
+*.whl
+*.tar.gz
