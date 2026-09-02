@@ -103,6 +103,7 @@ class MazeGenerator:
     def generate_pacman_maze(self) -> None:
         self._remove_dead_ends()
         self._add_loops(2)
+        self._open_pacman_special_cells()
 
     def _is_safe_to_break(self, x: int, y: int, direction: str) -> bool:
         dx, dy = 0, 0
@@ -363,3 +364,60 @@ class MazeGenerator:
         path.reverse()
 
         return path
+
+    def _open_pacman_special_cells(self) -> None:
+        center_x = self.width // 2
+        center_y = self.height // 2
+
+        special_cells = [
+            (0, 0),
+            (self.width - 1, 0),
+            (0, self.height - 1),
+            (self.width - 1, self.height - 1),
+            (center_x, center_y)
+        ]
+
+        opposite_walls = {"N": "S", "S": "N", "E": "W", "W": "E"}
+
+        for x, y in special_cells:
+            if (x, y) in self._pattern_cells:
+                continue
+
+            cell = self.grid[y][x]
+            closed_walls = [direction for direction, is_closed in
+                            cell.walls.items() if is_closed]
+
+            while len(closed_walls) >= 3:
+                breakable_walls = []
+
+                if "N" in closed_walls and y > 0:
+                    breakable_walls.append("N")
+                if "S" in closed_walls and y < self.height - 1:
+                    breakable_walls.append("S")
+                if "E" in closed_walls and x < self.width - 1:
+                    breakable_walls.append("E")
+                if "W" in closed_walls and x > 0:
+                    breakable_walls.append("W")
+
+                safe_walls = [w for w in breakable_walls if
+                              self._is_safe_to_break(x, y, w)]
+
+                if not safe_walls:
+                    break
+                wall_to_break = random.choice(safe_walls)
+                cell.walls[wall_to_break] = False
+
+                nx, ny = x, y
+                if wall_to_break == "N":
+                    ny -= 1
+                elif wall_to_break == "S":
+                    ny += 1
+                elif wall_to_break == "E":
+                    nx += 1
+                elif wall_to_break == "W":
+                    nx -= 1
+
+                self.grid[ny][nx].walls[opposite_walls[wall_to_break]] = False
+                closed_walls = [direction for direction, is_closed
+                                in cell.walls.items()
+                                if is_closed]

@@ -148,7 +148,11 @@ class MazeDisplay():
         line = "+"
         for cell_val in self.grid[y]:
             walls = self.get_walls(cell_val)
-            segment = f"{self._color}---{self.COLOR_RESET}" if walls[key] else "   "
+            segment = (
+                 f"{self._color}---{self.COLOR_RESET}"
+                 if walls[key]
+                 else "   "
+            )
             line += segment + "+"
         return line
 
