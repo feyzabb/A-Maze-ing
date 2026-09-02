@@ -14,9 +14,9 @@ clean:
 	find . -type d -name "__pycache__" -exec rm -r {} +
 
 lint:
-	flake8 .
-	mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
+	flake8 --exclude=venv .
+	mypy --exclude venv . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
 
 lint-strict:
-	flake8 .
-	mypy . --strict
+	flake8 --exclude=venv .
+	mypy --exclude venv . --strict

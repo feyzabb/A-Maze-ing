@@ -44,9 +44,16 @@ class MazeDisplay():
             self.parse_grid(grid_lines)
             self.parse_coordinates(footer_lines)
             self.parse_paths(footer_lines)
+
         except FileNotFoundError:
             print(f"Error:'{self.filepath}' is not found!"
-                  f"Default settings will be used.")
+                  f"Please ensure the maze was generated successfully."
+                  f"file=sys.stderr")
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error: An unexpected issue occurred while reading '"
+                  f"{self.filepath}': {e}", file=sys.stderr)
+            sys.exit(1)
 
     def parse_grid(self, grid_lines: List[str]) -> None:
         self.grid = []
