@@ -4,7 +4,7 @@ import sys
 
 
 class MazeDisplay():
-    WALL_CHAR = "██"
+    WALL_CHAR = "███"
     EMPTY_CHAR = " "
     PATH_CHAR = "••"
 
@@ -19,6 +19,8 @@ class MazeDisplay():
         self.path: List[str] = []
         self.entry: tuple[int, int] | None = None
         self.exit: tuple[int, int] | None = None
+        self.show_path = False
+        self.color_index = 0
         self.load_maze()
 
     def load_maze(self) -> None:
@@ -173,7 +175,8 @@ class MazeDisplay():
         if (x, y) == self.exit:
             return " X "
         if cell_val == 15:
-            return f"{self._color}███{self.COLOR_RESET}"
+            return f"{self._color}{self.WALL_CHAR}{self.COLOR_RESET}"
         if (x, y) in self._path_coords:
-            return " . "
+            return f" {self.PATH_CHAR[0]} "
         return "   "
+
