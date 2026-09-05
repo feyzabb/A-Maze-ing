@@ -156,48 +156,52 @@ def main() -> None:
         if config['SEED'] is not None:
             random.seed(config['SEED'])
 
-        generator = MazeGenerator(
-            width=config['WIDTH'],
-            height=config['HEIGHT']
-        )
-
-        entry_x, entry_y = config['ENTRY']
-        exit_x, exit_y = config['EXIT']
-
-        if generator.is_pattern_cell(entry_x, entry_y):
-            raise ValueError(
-                "Error: ENTRY cannot be inside the 42 pattern!"
+        while True:
+            generator = MazeGenerator(
+                width=config['WIDTH'],
+                height=config['HEIGHT']
             )
 
-        if generator.is_pattern_cell(exit_x, exit_y):
-            raise ValueError(
-                "Error: EXIT cannot be inside the 42 pattern!"
+            entry_x, entry_y = config['ENTRY']
+            exit_x, exit_y = config['EXIT']
+
+            if generator.is_pattern_cell(entry_x, entry_y):
+                raise ValueError(
+                    "Error: ENTRY cannot be inside the 42 pattern!"
+                )
+
+            if generator.is_pattern_cell(exit_x, exit_y):
+                raise ValueError(
+                    "Error: EXIT cannot be inside the 42 pattern!"
+                )
+
+            generator.mark_42_pattern_as_visited()
+
+            generator.generate_perfect_maze()
+            if not config['PERFECT']:
+                generator.generate_pacman_maze()
+
+            generator.add_42()
+            shortest_path = generator.solve_maze(config['ENTRY'],
+                                                 config['EXIT'])
+
+            if not shortest_path:
+                raise ValueError(
+                    "Error: No valid path exists between ENTRY and EXIT!"
+                )
+
+            save_maze_to_file(
+                maze_grid=generator.grid,
+                filepath=config['OUTPUT_FILE'],
+                entry=config['ENTRY'],
+                exit=config['EXIT'],
+                path=shortest_path
             )
+            display = MazeDisplay(config['OUTPUT_FILE'])
+            regenerate = display.start_interactive_mode()
 
-        generator.mark_42_pattern_as_visited()
-
-        generator.generate_perfect_maze()
-        if not config['PERFECT']:
-            generator.generate_pacman_maze()
-
-        generator.add_42()
-        shortest_path = generator.solve_maze(config['ENTRY'],
-                                             config['EXIT'])
-
-        if not shortest_path:
-            raise ValueError(
-                "Error: No valid path exists between ENTRY and EXIT!"
-            )
-
-        save_maze_to_file(
-            maze_grid=generator.grid,
-            filepath=config['OUTPUT_FILE'],
-            entry=config['ENTRY'],
-            exit=config['EXIT'],
-            path=shortest_path
-        )
-        display = MazeDisplay(config['OUTPUT_FILE'])
-        display.start_interactive_mode()
+            if not regenerate:
+                break
 
     except ValueError as e:
         print(e)

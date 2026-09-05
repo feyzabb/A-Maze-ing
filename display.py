@@ -156,7 +156,7 @@ class MazeDisplay():
             'W': bool(cell_value & 8)
         }
 
-    def start_interactive_mode(self) -> None:
+    def start_interactive_mode(self) -> bool:
         """Run the interactive terminal menu loop.
 
         Repeatedly draws the maze and prompts the user to regenerate the
@@ -181,15 +181,14 @@ class MazeDisplay():
 
             if choice == '1':
                 print("A new maze is being generated...")
-                os.system(f"{sys.executable} a_maze_ing.py config.txt")
-                self.load_maze()
+                return True
             elif choice == '2':
                 show_path = not show_path
             elif choice == '3':
                 color_index = (color_index + 1) % len(colors)
             elif choice == '4':
                 print("Terminating...")
-                break
+                return False
             else:
                 print("Invalid selection; please enter a "
                       "value between 1 and 4.")
