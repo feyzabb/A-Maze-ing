@@ -41,10 +41,11 @@ def read_config(filepath: str) -> Dict[str, Any]:
                     key, value = line.split('=', 1)
                     config_data[key.strip()] = value.strip()
                 else:
-                    print(f"Incorrect line! -> {line}")
+                    raise ValueError(f"Error: Incorrect line"
+                                     f"format! -> {line}")
+
     except FileNotFoundError:
-        print(f"Error:'{filepath}' is not found!"
-              f"Default settings will be used.")
+        raise ValueError(f"Error: '{filepath}' is not found!")
 
     return config_data
 
@@ -74,40 +75,61 @@ def validate_config(raw_config: Dict[str, Any]) -> Dict[str, Any]:
     valid_config: Dict[str, Any] = {}
     required_keys = ['WIDTH', 'HEIGHT', 'ENTRY', 'EXIT', 'OUTPUT_FILE',
                      'PERFECT']
+    allowed_keys = required_keys + ['SEED']
+
+    for key in raw_config:
+        if key not in allowed_keys:
+            raise ValueError(f"Error: Unknown key '{key}' in config file!")
+
     for key in required_keys:
         if key not in raw_config:
             raise ValueError(f"Error: '{key}' could not be found in the file!")
 
     try:
-
         valid_config['WIDTH'] = int(raw_config['WIDTH'])
+        if valid_config['WIDTH'] <= 0:
+            raise ValueError("WIDTH must be greater than zero!")
+
         valid_config['HEIGHT'] = int(raw_config['HEIGHT'])
+        if valid_config['HEIGHT'] <= 0:
+            raise ValueError("HEIGHT must be greater than zero!")
 
         entry_parts = raw_config['ENTRY'].split(',')
+        if len(entry_parts) != 2:
+            raise ValueError("ENTRY must be in 'x,y' format!")
         valid_config['ENTRY'] = (int(entry_parts[0].strip()),
                                  int(entry_parts[1].strip()))
 
         exit_parts = raw_config['EXIT'].split(',')
+        if len(exit_parts) != 2:
+            raise ValueError("EXIT must be in 'x,y' format!")
         valid_config['EXIT'] = (int(exit_parts[0].strip()),
                                 int(exit_parts[1].strip()))
 
-        valid_config['PERFECT'] = raw_config['PERFECT'].lower() == 'true'
-        valid_config['OUTPUT_FILE'] = raw_config['OUTPUT_FILE']
+        perfect_str = raw_config['PERFECT'].lower()
+        if perfect_str not in ['true', 'false']:
+            raise ValueError(f"PERFECT must be 'true' or 'false',"
+                             f"got '{raw_config['PERFECT']}'!")
+        valid_config['PERFECT'] = perfect_str == 'true'
+
+        output_file = raw_config['OUTPUT_FILE'].strip()
+        if not output_file:
+            raise ValueError("OUTPUT_FILE cannot be empty!")
+        valid_config['OUTPUT_FILE'] = output_file
+
         if 'SEED' in raw_config:
             valid_config['SEED'] = int(raw_config['SEED'])
         else:
             valid_config['SEED'] = None
+
     except ValueError as e:
-        raise ValueError(f"Error: Invalid type found in settings file! {e}")
+        raise ValueError(f"Error: Invalid value in settings file! {e}")
     except IndexError:
         raise ValueError("Error: ENTRY and EXIT coordinates must be formatted "
                          "with a comma (e.g., 'x,y')!")
     except Exception as e:
         raise ValueError(f"Error: An unexpected configuration error occurred! "
                          f"{e}")
-
-    if valid_config['WIDTH'] <= 0 or valid_config['HEIGHT'] <= 0:
-        raise ValueError("Error: WIDTH and HEIGHT must be greater than zero!")
 
     entry_x, entry_y = valid_config['ENTRY']
     if (
@@ -148,8 +170,6 @@ def main() -> None:
 
     try:
         raw_config = read_config(config_file)
-        if not raw_config:
-            sys.exit(1)
 
         config = validate_config(raw_config)
 
