@@ -117,10 +117,12 @@ def validate_config(raw_config: Dict[str, Any]) -> Dict[str, Any]:
             raise ValueError("OUTPUT_FILE cannot be empty!")
         valid_config['OUTPUT_FILE'] = output_file
 
-        if 'SEED' in raw_config:
-            valid_config['SEED'] = int(raw_config['SEED'])
-        else:
+        seed = raw_config.get('SEED')
+
+        if seed is None or seed.strip().lower() == 'none':
             valid_config['SEED'] = None
+        else:
+            valid_config['SEED'] = int(seed)
 
     except ValueError as e:
         raise ValueError(f"Error: Invalid value in settings file! {e}")

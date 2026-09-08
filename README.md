@@ -89,11 +89,18 @@ for row in generator.grid:
 ## Team and Project Management
 
 * **Roles:**
-  * **fbiber** was responsible for the core algorithm logic: the perfect/pac-man maze generation, the iterative DFS implementation, and the "42" pattern integration inside the `mazegen` package.owned the middle layer connecting the two sides: the configuration file reading/validation and the `a_maze_ing.py` entry point that wires the `mazegen` backend to the display frontend.
+  * **fbiber** was responsible for the core algorithm logic (the `mazegen` package): the perfect/pac-man maze generation, the iterative DFS implementation, and the "42" pattern integration. fbiber also owned the middle integration layer: the configuration file reading/validation and the `a_maze_ing.py` entry point that wires the `mazegen` backend to the display frontend.
   * **raltunda** managed the interactive terminal display (`display.py`), the hexadecimal file parsing, and the user interface for toggling paths and colours.
- 
 
-* **Planning & Evolution:** We split the project into three clear layers — the backend (`mazegen` package), the middle/integration layer (config parsing and `a_maze_ing.py`), and the frontend (`display.py`) — which let the three of us work in parallel with minimal blocking dependencies.
+* **Planning & Evolution:** We split the project into three clear layers — the backend (`mazegen` package), the middle/integration layer (config parsing and `a_maze_ing.py`), and the frontend (`display.py`) — which let the two of us work in parallel with minimal blocking dependencies.
+
+* **What Worked Well:**
+  * The three-layer split (backend / integration / frontend) meant each person could develop and test their part against a stable, agreed-upon interface (the `mazegen` API and the output file format), which minimised merge conflicts and blocking dependencies.
+  * Defining the hexadecimal output file format early gave both sides a clear contract to build against, so the generator and the display could be developed and tested independently before being wired together.
+
+* **What Could Be Improved:**
+  * Stricter automated checks (running `flake8`/`mypy`, and a syntax/import smoke test) before every commit and before rebuilding the distributable package would have caught integration issues earlier.
+  * More end-to-end test runs (actually rebuilding the `mazegen` wheel from source and reinstalling it in a clean environment) throughout development, rather than only near submission, would help ensure the packaged artifact always matches the latest source.
 
 * **Tools Used:** Git for version control, `Makefile` for task automation, `flake8` for syntax checking, and `mypy` for strict static type checking.
 
